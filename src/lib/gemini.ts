@@ -4,8 +4,10 @@ let aiClient: GoogleGenAI | null = null;
 
 function getAIClient() {
   if (!aiClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
+    // Try process.env first (for our custom vite config), then import.meta.env for standard Vite
+    const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
     if (!apiKey) {
+      console.error("Gemini API Key is missing!");
       throw new Error("Gemini API key is missing. Please configure it in your environment variables.");
     }
     aiClient = new GoogleGenAI({ apiKey });
@@ -62,7 +64,9 @@ export async function generateReviews(shopName: string, shopType: string, keywor
     
     const text = response.text;
     if (text) {
-      return JSON.parse(text) as string[];
+      // Strip markdown code blocks if present
+      const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      return JSON.parse(cleanText) as string[];
     }
     return [];
   } catch (error) {
