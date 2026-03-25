@@ -4,8 +4,10 @@ let aiClient: GoogleGenAI | null = null;
 
 function getAIClient() {
   if (!aiClient) {
+    // DEBUG: Log all available env variables
+    console.log("DEBUG: All env variables:", (import.meta as any).env);
+    
     // In Vite production, import.meta.env is replaced at build time.
-    // We need to make sure we're getting the right value.
     let apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
     
     // Fallback to process.env if available (for local dev/custom setups)
