@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { LogOut, Plus, Edit2, Trash2, Copy, QrCode, BarChart3, Settings, Store, Shield, ChevronRight, Star } from 'lucide-react';
+import { LogOut, Plus, Edit2, Trash2, Copy, QrCode, BarChart3, Settings, Store, Shield, ChevronRight, Star, Palette, Check } from 'lucide-react';
 import { auth, db, googleProvider, handleFirestoreError, OperationType } from '../firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
@@ -14,9 +14,19 @@ interface Shop {
   reviewLink: string;
   ownerId: string;
   createdAt: any;
+  theme?: string;
 }
 
 type Tab = 'shops' | 'analytics' | 'settings';
+
+const THEME_OPTIONS = [
+  { id: 'default', name: 'Default', desc: 'Standard gradient look', color: 'bg-gradient-to-r from-pink-400 to-purple-400' },
+  { id: 'mint-neumorphism', name: '🌿 Mint Soft Neumorphism', desc: 'Calm, clean, premium + cute', color: 'bg-[#e0f2eb] border border-[#becece]' },
+  { id: 'dreamy-glass', name: '☁️ Dreamy Glass Pastel', desc: 'Dreamy + aesthetic + soft cute', color: 'bg-gradient-to-br from-pink-200 to-teal-200' },
+  { id: 'soft-glow', name: '✨ Soft Glow UI', desc: 'Modern + slightly futuristic', color: 'bg-slate-900 border border-pink-500/50' },
+  { id: 'bubble-pastel', name: '🍬 Bubble Pastel UI', desc: 'Ultra cute + playful', color: 'bg-pink-100 border-2 border-pink-300' },
+  { id: 'calm-minimal', name: '🌸 Calm Minimal Cute', desc: 'Simple + clean + elegant', color: 'bg-[#fdfbf7] border border-slate-200' },
+];
 
 export default function AdminDashboard() {
   const [user, setUser] = useState<User | null>(null);
@@ -25,6 +35,8 @@ export default function AdminDashboard() {
   const [totalReviews, setTotalReviews] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showThemeModal, setShowThemeModal] = useState(false);
+  const [selectedShopForTheme, setSelectedShopForTheme] = useState<Shop | null>(null);
   const [editingShop, setEditingShop] = useState<Shop | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('shops');
 
@@ -171,6 +183,25 @@ export default function AdminDashboard() {
     setShowAddModal(true);
   };
 
+  const openThemeModal = (shop: Shop) => {
+    setSelectedShopForTheme(shop);
+    setShowThemeModal(true);
+  };
+
+  const handleThemeChange = async (themeId: string) => {
+    if (!selectedShopForTheme) return;
+    try {
+      const shopRef = doc(db, 'shops', selectedShopForTheme.id);
+      await updateDoc(shopRef, { theme: themeId });
+      toast.success('Theme updated successfully!');
+      setShowThemeModal(false);
+      fetchShops(user!.uid);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'shops');
+      toast.error('Failed to update theme');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center">
@@ -255,15 +286,24 @@ export default function AdminDashboard() {
                 {shops.map((shop) => {
                   const shopUrl = `${window.location.origin}/shop/${shop.id}`;
                   return (
-                    <div key={shop.id} className="bg-white/60 backdrop-blur-xl rounded-[2rem] border border-white/50 p-6 shadow-[0_8px_32px_0_rgba(31,38,135,0.05)] flex flex-col sm:flex-row gap-6 transition-all hover:bg-white/80">
+                    <div key={shop.id} className="bg-white/60 backdrop-blur-xl rounded-[2rem] border border-white/50 p-6 shadow-[0_8px_32px_0_rgba(31,38,135,0.05)] flex flex-col sm:flex-row gap-6 transition-all hover:bg-white/80 relative">
                       <div className="flex-1 space-y-4">
-                        <div>
+                        <div className="pr-24">
                           <h3 className="text-xl font-bold text-slate-800">{shop.name}</h3>
                           <span className="inline-block px-3 py-1 bg-pink-100 text-pink-700 text-xs font-bold rounded-lg mt-2">
                             {shop.type}
                           </span>
                         </div>
                         
+                        <button
+                          onClick={() => openThemeModal(shop)}
+                          className="absolute top-6 right-6 p-2.5 text-purple-600 bg-purple-100 hover:bg-purple-200 rounded-xl transition-colors shadow-sm flex items-center gap-2 font-bold text-sm"
+                          title="Change Theme"
+                        >
+                          <Palette className="w-4 h-4" />
+                          <span className="hidden sm:inline">Theme</span>
+                        </button>
+
                         <div>
                           <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-2">Keywords</p>
                           <div className="flex flex-wrap gap-2">
@@ -571,6 +611,55 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Theme Selection Modal */}
+      {showThemeModal && selectedShopForTheme && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white/90 backdrop-blur-2xl rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden border border-white">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white/50">
+              <div>
+                <h2 className="text-xl font-black text-slate-800">Choose Theme</h2>
+                <p className="text-sm text-slate-500 font-medium">Select a unique look for {selectedShopForTheme.name}</p>
+              </div>
+              <button
+                onClick={() => setShowThemeModal(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+              <div className="grid grid-cols-1 gap-3">
+                {THEME_OPTIONS.map((theme) => {
+                  const isSelected = (selectedShopForTheme.theme || 'default') === theme.id;
+                  return (
+                    <button
+                      key={theme.id}
+                      onClick={() => handleThemeChange(theme.id)}
+                      className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left ${
+                        isSelected 
+                          ? 'border-purple-500 bg-purple-50 shadow-md' 
+                          : 'border-slate-100 bg-white hover:border-purple-200 hover:bg-purple-50/50'
+                      }`}
+                    >
+                      <div className={`w-12 h-12 rounded-full shadow-inner flex-shrink-0 ${theme.color}`}></div>
+                      <div className="flex-1">
+                        <h4 className={`font-bold ${isSelected ? 'text-purple-900' : 'text-slate-800'}`}>{theme.name}</h4>
+                        <p className={`text-xs mt-0.5 ${isSelected ? 'text-purple-600' : 'text-slate-500'}`}>{theme.desc}</p>
+                      </div>
+                      {isSelected && (
+                        <div className="w-6 h-6 rounded-full bg-purple-500 text-white flex items-center justify-center">
+                          <Check className="w-4 h-4" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}
