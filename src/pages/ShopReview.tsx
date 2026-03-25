@@ -241,7 +241,21 @@ export default function ShopReview() {
     }, 1500);
   };
 
-  if (!loading && !shop) {
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="flex flex-col items-center justify-center">
+          <div className="relative w-16 h-16 mb-4">
+            <div className="absolute inset-0 border-4 border-slate-200 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-slate-800 rounded-full border-t-transparent animate-spin"></div>
+          </div>
+          <p className="text-slate-500 font-medium animate-pulse">Loading experience...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!shop) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center p-6">
         <div className="text-center bg-white/60 backdrop-blur-xl p-10 rounded-[2rem] shadow-xl border border-white/50">
@@ -253,7 +267,7 @@ export default function ShopReview() {
     );
   }
 
-  const displayShop = shop || { name: 'Loading...', type: 'Please wait...', theme: 'default' } as Shop;
+  const displayShop = shop;
   const currentTheme = THEMES[(displayShop.theme as keyof typeof THEMES)] || THEMES['default'];
 
   return (
