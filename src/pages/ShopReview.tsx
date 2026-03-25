@@ -220,19 +220,25 @@ export default function ShopReview() {
   const handleCopy = (text: string, index: number) => {
     navigator.clipboard.writeText(text);
     setCopiedIndex(index);
-    toast.success('Copied ✅');
+    toast.success('Copied! Redirecting to Google...');
+    
+    setTimeout(() => {
+      if (shop?.reviewLink) {
+        window.location.href = shop.reviewLink;
+      }
+    }, 1500);
   };
 
   const handleManualCopy = () => {
     navigator.clipboard.writeText(manualReview);
     setManualCopied(true);
-    toast.success('Copied ✅');
-  };
-
-  const openGoogleReview = () => {
-    if (shop?.reviewLink) {
-      window.location.href = shop.reviewLink;
-    }
+    toast.success('Copied! Redirecting to Google...');
+    
+    setTimeout(() => {
+      if (shop?.reviewLink) {
+        window.location.href = shop.reviewLink;
+      }
+    }, 1500);
   };
 
   if (loading) {
@@ -450,24 +456,12 @@ export default function ShopReview() {
                           )}
                         >
                           {copiedIndex === idx ? (
-                            <>Copied ✅</>
+                            <>Redirecting... ✅</>
                           ) : (
-                            <><Copy className="w-3.5 h-3.5" /> Copy</>
+                            <><Copy className="w-3.5 h-3.5" /> Copy & Submit</>
                           )}
                         </button>
                       </div>
-
-                      {/* Show Open Google Review button ONLY for the copied review */}
-                      {copiedIndex === idx && (
-                        <motion.button
-                          initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                          animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
-                          onClick={openGoogleReview}
-                          className="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-black text-sm hover:opacity-90 transition-all shadow-md flex items-center justify-center gap-2"
-                        >
-                          Open Google Review <ExternalLink className="w-4 h-4" />
-                        </motion.button>
-                      )}
                     </motion.div>
                   ))}
                 </div>
@@ -507,19 +501,8 @@ export default function ShopReview() {
                           : "bg-slate-200 text-slate-400 cursor-not-allowed"
                     )}
                   >
-                    {manualCopied ? 'Copied ✅' : <><Copy className="w-4 h-4" /> Copy Feedback</>}
+                    {manualCopied ? 'Redirecting... ✅' : <><Copy className="w-4 h-4" /> Copy & Submit</>}
                   </button>
-
-                  {manualCopied && (
-                    <motion.button
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      onClick={openGoogleReview}
-                      className="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-black text-sm hover:opacity-90 transition-all shadow-md flex items-center justify-center gap-2"
-                    >
-                      Open Google Review <ExternalLink className="w-4 h-4" />
-                    </motion.button>
-                  )}
                 </div>
               </motion.div>
             )}
