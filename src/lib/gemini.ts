@@ -23,8 +23,7 @@ function getAIClient() {
       throw new Error("Gemini API key is missing. Please configure VITE_GEMINI_API_KEY in your environment variables.");
     }
     
-    // Create a new instance every time to avoid stale keys if it somehow changes
-    return new GoogleGenAI({ apiKey });
+    aiClient = new GoogleGenAI({ apiKey });
   }
   return aiClient;
 }
