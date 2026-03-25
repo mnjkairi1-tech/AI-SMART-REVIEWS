@@ -4,13 +4,27 @@ let aiClient: GoogleGenAI | null = null;
 
 function getAIClient() {
   if (!aiClient) {
-    // Try process.env first (for our custom vite config), then import.meta.env for standard Vite
-    const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
+    // In Vite production, import.meta.env is replaced at build time.
+    // We need to make sure we're getting the right value.
+    let apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+    
+    // Fallback to process.env if available (for local dev/custom setups)
+    if (!apiKey && typeof process !== 'undefined' && process.env.GEMINI_API_KEY) {
+      apiKey = process.env.GEMINI_API_KEY;
+    }
+      
+    // Clean up the API key just in case it has quotes or whitespace
+    if (apiKey) {
+      apiKey = apiKey.trim().replace(/^["']|["']$/g, '');
+    }
+      
     if (!apiKey) {
       console.error("Gemini API Key is missing!");
-      throw new Error("Gemini API key is missing. Please configure it in your environment variables.");
+      throw new Error("Gemini API key is missing. Please configure VITE_GEMINI_API_KEY in your environment variables.");
     }
-    aiClient = new GoogleGenAI({ apiKey });
+    
+    // Create a new instance every time to avoid stale keys if it somehow changes
+    return new GoogleGenAI({ apiKey });
   }
   return aiClient;
 }

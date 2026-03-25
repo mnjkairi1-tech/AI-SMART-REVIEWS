@@ -241,15 +241,7 @@ export default function ShopReview() {
     }, 1500);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-pink-200 border-t-pink-500 rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
-  if (!shop) {
+  if (!loading && !shop) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center p-6">
         <div className="text-center bg-white/60 backdrop-blur-xl p-10 rounded-[2rem] shadow-xl border border-white/50">
@@ -261,7 +253,8 @@ export default function ShopReview() {
     );
   }
 
-  const currentTheme = THEMES[(shop.theme as keyof typeof THEMES)] || THEMES['default'];
+  const displayShop = shop || { name: 'Loading...', type: 'Please wait...', theme: 'default' } as Shop;
+  const currentTheme = THEMES[(displayShop.theme as keyof typeof THEMES)] || THEMES['default'];
 
   return (
     <div className={`min-h-screen ${currentTheme.bg} flex flex-col items-center justify-center p-4 sm:p-6 font-sans relative overflow-hidden transition-colors duration-500`}>
@@ -295,8 +288,8 @@ export default function ShopReview() {
             >
               <Store className={`w-8 h-8 ${currentTheme.iconColor}`} />
             </motion.div>
-            <h1 className={`text-2xl font-black ${currentTheme.headerText} mb-1 tracking-tight drop-shadow-sm`}>{shop.name}</h1>
-            <p className={`text-xs font-bold uppercase tracking-wider ${currentTheme.headerSubtext}`}>{shop.type}</p>
+            <h1 className={`text-2xl font-black ${currentTheme.headerText} mb-1 tracking-tight drop-shadow-sm`}>{displayShop.name}</h1>
+            <p className={`text-xs font-bold uppercase tracking-wider ${currentTheme.headerSubtext}`}>{displayShop.type}</p>
           </div>
         </div>
 
