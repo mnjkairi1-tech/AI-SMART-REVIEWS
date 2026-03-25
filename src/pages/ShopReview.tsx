@@ -189,8 +189,8 @@ export default function ShopReview() {
         setGeneratedReviews(reviews);
         logInteraction(rating, selectedCategories, true);
         setStep(3); // Reviews step
-      } catch (error) {
-        toast.error('Failed to generate reviews. Please try again.');
+      } catch (error: any) {
+        toast.error(error?.message || 'Failed to generate reviews. Please try again.');
         setStep(1);
       } finally {
         setIsGenerating(false);

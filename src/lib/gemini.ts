@@ -69,8 +69,8 @@ export async function generateReviews(shopName: string, shopType: string, keywor
       return JSON.parse(cleanText) as string[];
     }
     return [];
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error generating reviews:", error);
-    throw new Error("Failed to generate reviews. Please try again.");
+    throw new Error(error?.message || "Failed to generate reviews. Please try again.");
   }
 }
