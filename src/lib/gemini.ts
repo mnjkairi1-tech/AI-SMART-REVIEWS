@@ -1,6 +1,17 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let aiClient: GoogleGenAI | null = null;
+
+function getAIClient() {
+  if (!aiClient) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("Gemini API key is missing. Please configure it in your environment variables.");
+    }
+    aiClient = new GoogleGenAI({ apiKey });
+  }
+  return aiClient;
+}
 
 export async function generateReviews(shopName: string, shopType: string, keywords: string[], rating: number, categories: string[]) {
   let toneInstruction = "";
@@ -33,6 +44,7 @@ export async function generateReviews(shopName: string, shopType: string, keywor
   `;
 
   try {
+    const ai = getAIClient();
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
