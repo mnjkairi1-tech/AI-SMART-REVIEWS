@@ -5,6 +5,7 @@ import { LogOut, Plus, Edit2, Trash2, Copy, QrCode, BarChart3, Settings, Store, 
 import { auth, db, googleProvider, handleFirestoreError, OperationType } from '../firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface Shop {
   id: string;
@@ -284,7 +285,17 @@ export default function AdminDashboard() {
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {shops.map((shop) => {
-                  const shopUrl = `${window.location.origin}/shop/${shop.id}`;
+                  // Encode shop data for instant loading on the public page
+                  const shopData = {
+                    n: shop.name,
+                    t: shop.type,
+                    k: shop.keywords,
+                    l: shop.reviewLink,
+                    th: shop.theme || 'default'
+                  };
+                  const encodedData = btoa(encodeURIComponent(JSON.stringify(shopData)));
+                  const shopUrl = `${window.location.origin}/shop/${shop.id}?d=${encodedData}`;
+                  
                   return (
                     <div key={shop.id} className="bg-white/60 backdrop-blur-xl rounded-[2rem] border border-white/50 p-6 shadow-[0_8px_32px_0_rgba(31,38,135,0.05)] flex flex-col sm:flex-row gap-6 transition-all hover:bg-white/80 relative">
                       <div className="flex-1 space-y-4">
@@ -332,7 +343,7 @@ export default function AdminDashboard() {
                           </button>
                           <button
                             onClick={() => {
-                              navigator.clipboard.writeText(`${window.location.origin}/shop/${shop.id}`);
+                              navigator.clipboard.writeText(shopUrl);
                               toast.success('Public link copied!');
                             }}
                             className="p-2.5 text-slate-400 hover:text-pink-600 hover:bg-pink-50 rounded-xl transition-colors bg-white/50 shadow-sm ml-auto"
@@ -341,7 +352,7 @@ export default function AdminDashboard() {
                             <Copy className="w-4 h-4" />
                           </button>
                           <Link
-                            to={`/shop/${shop.id}`}
+                            to={`/shop/${shop.id}?d=${encodedData}`}
                             target="_blank"
                             className="text-sm text-pink-500 hover:text-pink-600 hover:underline font-bold flex items-center gap-1"
                           >

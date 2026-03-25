@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Copy, CheckCircle2, Store, Sparkles, Star, Edit2, ExternalLink } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
@@ -125,8 +125,32 @@ const CATEGORIES = ['Staff', 'Cleanliness', 'Service', 'Price', 'Vibe'];
 
 export default function ShopReview() {
   const { shopId } = useParams<{ shopId: string }>();
-  const [shop, setShop] = useState<Shop | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [searchParams] = useSearchParams();
+  
+  // Parse initial data from URL if available
+  const initialData = (() => {
+    const d = searchParams.get('d');
+    if (d) {
+      try {
+        const parsed = JSON.parse(decodeURIComponent(atob(d)));
+        return {
+          id: shopId || '',
+          name: parsed.n || '',
+          type: parsed.t || '',
+          keywords: parsed.k || '',
+          reviewLink: parsed.l || '',
+          theme: parsed.th || 'default'
+        };
+      } catch (e) {
+        console.error("Failed to parse initial data", e);
+        return null;
+      }
+    }
+    return null;
+  })();
+
+  const [shop, setShop] = useState<Shop | null>(initialData);
+  const [loading, setLoading] = useState(!initialData);
   
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [selectedRating, setSelectedRating] = useState<number>(0);
@@ -146,24 +170,36 @@ export default function ShopReview() {
   useEffect(() => {
     const fetchShop = async () => {
       if (!shopId) return;
+
+      // 1. Try to load theme from localStorage instantly if no initialData
+      if (!initialData) {
+        const cachedTheme = localStorage.getItem(`theme_${shopId}`);
+        if (cachedTheme) {
+          setShop(prev => prev ? { ...prev, theme: cachedTheme } : { id: shopId, name: '', type: '', keywords: [], reviewLink: '', theme: cachedTheme } as Shop);
+        }
+      }
+
       try {
         const docRef = doc(db, 'shops', shopId);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const shopData = { id: docSnap.id, ...docSnap.data() } as Shop;
           setShop(shopData);
-          setLoading(false);
+          // 2. Cache the latest theme
+          if (shopData.theme) {
+            localStorage.setItem(`theme_${shopId}`, shopData.theme);
+          }
         } else {
           toast.error('Shop not found');
-          setLoading(false);
         }
       } catch (error) {
         handleFirestoreError(error, OperationType.GET, `shops/${shopId}`);
+      } finally {
         setLoading(false);
       }
     };
     fetchShop();
-  }, [shopId]);
+  }, [shopId, initialData]);
 
   const toggleCategory = (cat: string) => {
     setSelectedCategories(prev => 
