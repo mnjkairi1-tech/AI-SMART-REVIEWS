@@ -152,6 +152,7 @@ export default function ShopReview() {
         if (docSnap.exists()) {
           const shopData = { id: docSnap.id, ...docSnap.data() } as Shop;
           setShop(shopData);
+          setLoading(false);
         } else {
           toast.error('Shop not found');
           setLoading(false);
