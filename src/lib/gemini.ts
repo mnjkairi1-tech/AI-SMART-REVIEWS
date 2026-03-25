@@ -22,7 +22,8 @@ function getAIClient() {
       
     if (!apiKey) {
       console.error("Gemini API Key is missing!");
-      throw new Error("Gemini API key is missing. Please configure VITE_GEMINI_API_KEY in your environment variables.");
+      const env = (import.meta as any).env || {};
+      throw new Error("Gemini API key is missing. Please configure VITE_GEMINI_API_KEY in your Vercel environment variables. Available env keys: " + Object.keys(env).join(", "));
     }
     
     aiClient = new GoogleGenAI({ apiKey });
