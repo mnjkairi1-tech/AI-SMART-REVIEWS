@@ -93,13 +93,14 @@ service cloud.firestore {
     }
 
     function isValidShop(data) {
-      return hasOnlyAllowedFields(['name', 'type', 'keywords', 'reviewLink', 'ownerId', 'createdAt']) &&
+      return hasOnlyAllowedFields(['name', 'type', 'keywords', 'reviewLink', 'ownerId', 'createdAt', 'theme']) &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              data.type is string && data.type.size() > 0 && data.type.size() < 50 &&
              isValidList(data.keywords, 20) &&
              isValidUrl(data.reviewLink) && data.reviewLink.size() < 500 &&
              data.ownerId is string && data.ownerId.size() > 0 && data.ownerId.size() < 50 &&
-             data.createdAt is timestamp;
+             data.createdAt is timestamp &&
+             (!('theme' in data) || (data.theme is string && data.theme.size() < 50));
     }
 
     function isValidLog(data) {
