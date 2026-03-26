@@ -57,6 +57,10 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == resource.data.ownerId;
     }
 
+    function isNotBlocked() {
+      return !get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isBlocked', false);
+    }
+
     function hasRequiredFields(fields) {
       return request.resource.data.keys().hasAll(fields);
     }
@@ -86,10 +90,11 @@ service cloud.firestore {
     // ===============================================================
 
     function isValidUser(data) {
-      return hasOnlyAllowedFields(['email', 'role', 'createdAt']) &&
+      return hasOnlyAllowedFields(['email', 'role', 'createdAt', 'isBlocked']) &&
              data.email is string && isValidEmail(data.email) &&
              data.role in ['admin', 'owner'] &&
-             data.createdAt is timestamp;
+             data.createdAt is timestamp &&
+             (!('isBlocked' in data) || data.isBlocked is bool);
     }
 
     function isValidShop(data) {
@@ -127,9 +132,9 @@ service cloud.firestore {
         (isOwner(userId) && request.resource.data.role == 'owner')
       );
       
-      // Only admins can update users, or users can update themselves but not their role
+      // Only admins can update users, or users can update themselves but not their role or isBlocked status
       allow update: if isAuthenticated() && isValidUser(request.resource.data) && (
-        isAdmin() || (isOwner(userId) && areImmutableFieldsUnchanged(['role', 'createdAt', 'email']))
+        isAdmin() || (isOwner(userId) && areImmutableFieldsUnchanged(['role', 'createdAt', 'email', 'isBlocked']))
       );
       
       allow delete: if isAdmin();
@@ -140,12 +145,12 @@ service cloud.firestore {
       allow read: if true;
       
       // Only admins or the owner can create a shop
-      allow create: if isAuthenticated() && isValidShop(request.resource.data) && (
+      allow create: if isAuthenticated() && isNotBlocked() && isValidShop(request.resource.data) && (
         isAdmin() || (request.resource.data.ownerId == request.auth.uid)
       );
       
       // Only admins or the owner can update a shop
-      allow update: if isAuthenticated() && isValidShop(request.resource.data) && (
+      allow update: if isAuthenticated() && isNotBlocked() && isValidShop(request.resource.data) && (
         isAdmin() || (isDocOwner() && areImmutableFieldsUnchanged(['ownerId', 'createdAt']))
       );
       

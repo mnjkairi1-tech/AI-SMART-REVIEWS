@@ -25,82 +25,146 @@ interface Shop {
 const THEMES = {
   'mint-neumorphism': {
     bg: 'bg-[#e0f2eb]',
-    card: 'bg-[#e0f2eb] shadow-[8px_8px_16px_#becece,-8px_-8px_16px_#ffffff] rounded-[30px] border-none',
-    header: 'bg-[#e0f2eb] border-b border-[#becece]/30 p-8 text-center relative overflow-hidden',
+    card: 'bg-[#e0f2eb] shadow-[9px_9px_16px_#becece,-9px_-9px_16px_#ffffff] rounded-[25px] border-none',
+    header: 'bg-[#e0f2eb] border-none shadow-[0_9px_16px_#becece] p-8 text-center relative overflow-hidden',
     headerText: 'text-teal-800',
-    headerSubtext: 'text-teal-600',
-    text: 'text-teal-900',
-    subtext: 'text-teal-600',
-    primaryBtn: 'bg-[#e0f2eb] shadow-[5px_5px_10px_#becece,-5px_-5px_10px_#ffffff] text-teal-700 hover:shadow-[inset_5px_5px_10px_#becece,inset_-5px_-5px_10px_#ffffff]',
-    secondaryBtn: 'bg-[#e0f2eb] shadow-[5px_5px_10px_#becece,-5px_-5px_10px_#ffffff] text-teal-600',
-    secondaryBtnActive: 'shadow-[inset_5px_5px_10px_#becece,inset_-5px_-5px_10px_#ffffff] text-teal-800',
+    headerSubtext: 'text-teal-600/70',
+    text: 'text-teal-800',
+    subtext: 'text-teal-600/70',
+    primaryBtn: 'bg-[#e0f2eb] shadow-[5px_5px_10px_#becece,-5px_-5px_10px_#ffffff] text-teal-700 hover:shadow-[inset_5px_5px_10px_#becece,inset_-5px_-5px_10px_#ffffff] rounded-2xl',
+    secondaryBtn: 'bg-[#e0f2eb] shadow-[5px_5px_10px_#becece,-5px_-5px_10px_#ffffff] text-teal-600 hover:shadow-[inset_5px_5px_10px_#becece,inset_-5px_-5px_10px_#ffffff] rounded-2xl',
+    secondaryBtnActive: 'shadow-[inset_5px_5px_10px_#becece,inset_-5px_-5px_10px_#ffffff] text-teal-800 rounded-2xl',
     accent: 'text-teal-500',
-    iconBg: 'bg-[#e0f2eb] shadow-[inset_2px_2px_5px_#becece,inset_-2px_-2px_5px_#ffffff]',
-    iconColor: 'text-teal-500',
+    iconBg: 'bg-[#e0f2eb] shadow-[inset_3px_3px_6px_#becece,inset_-3px_-3px_6px_#ffffff]',
+    iconColor: 'text-teal-600',
     blobs: false
   },
   'dreamy-glass': {
-    bg: 'bg-gradient-to-br from-pink-200 via-purple-200 to-teal-200',
-    card: 'bg-white/30 backdrop-blur-xl border border-white/50 shadow-[0_8px_32px_0_rgba(31,38,135,0.1)] rounded-[2.5rem]',
-    header: 'bg-white/20 border-b border-white/30 p-8 text-center relative overflow-hidden',
-    headerText: 'text-slate-800',
-    headerSubtext: 'text-slate-600',
-    text: 'text-slate-800',
-    subtext: 'text-slate-600',
-    primaryBtn: 'bg-white/40 hover:bg-white/50 border border-white/50 text-purple-800 shadow-sm',
-    secondaryBtn: 'bg-white/30 hover:bg-white/40 text-slate-700 border border-white/30',
-    secondaryBtnActive: 'bg-white/60 border-white/80 text-purple-700',
-    accent: 'text-purple-500',
-    iconBg: 'bg-white/40 border border-white/50',
-    iconColor: 'text-purple-500',
+    bg: 'bg-gradient-to-br from-[#e0f2eb] via-[#e0eaf5] to-[#f0f4f8]',
+    card: 'bg-white/40 backdrop-blur-xl border border-white/60 shadow-[0_8px_32px_0_rgba(180,200,210,0.3)] rounded-[25px]',
+    header: 'bg-white/30 backdrop-blur-xl border-b border-white/60 p-8 text-center relative overflow-hidden',
+    headerText: 'text-slate-700',
+    headerSubtext: 'text-slate-500',
+    text: 'text-slate-700',
+    subtext: 'text-slate-500',
+    primaryBtn: 'bg-white/50 hover:bg-white/70 border border-white/60 text-teal-700 shadow-sm rounded-2xl',
+    secondaryBtn: 'bg-white/40 hover:bg-white/60 text-slate-600 border border-white/50 rounded-2xl',
+    secondaryBtnActive: 'bg-white/60 border-white/60 text-teal-700 shadow-sm rounded-2xl',
+    accent: 'text-teal-400',
+    iconBg: 'bg-white/50',
+    iconColor: 'text-teal-500',
     blobs: true
   },
   'soft-glow': {
-    bg: 'bg-slate-900',
-    card: 'bg-slate-800/80 backdrop-blur-md border border-slate-700 shadow-[0_0_20px_rgba(236,72,153,0.15)] rounded-[2.5rem]',
-    header: 'bg-slate-800/50 border-b border-slate-700 p-8 text-center relative overflow-hidden',
-    headerText: 'text-white',
-    headerSubtext: 'text-pink-400',
-    text: 'text-white',
-    subtext: 'text-slate-400',
-    primaryBtn: 'bg-slate-800 text-pink-400 border border-pink-500/30 shadow-[0_0_10px_rgba(236,72,153,0.3)] hover:shadow-[0_0_20px_rgba(236,72,153,0.6)] transition-shadow',
-    secondaryBtn: 'bg-slate-800 text-slate-300 border border-slate-700 hover:border-slate-500',
-    secondaryBtnActive: 'bg-slate-700 border-pink-500/50 text-pink-400 shadow-[0_0_10px_rgba(236,72,153,0.2)]',
-    accent: 'text-pink-400',
-    iconBg: 'bg-slate-800 border border-slate-700 shadow-[0_0_15px_rgba(236,72,153,0.2)]',
-    iconColor: 'text-pink-400',
+    bg: 'bg-[#f4fbf8]',
+    card: 'bg-white backdrop-blur-md border border-teal-50 shadow-[0_0_20px_rgba(45,212,191,0.1)] rounded-[25px]',
+    header: 'bg-white/80 border-b border-teal-100 shadow-[0_4px_24px_rgba(45,212,191,0.05)] p-8 text-center relative overflow-hidden',
+    headerText: 'text-teal-900',
+    headerSubtext: 'text-teal-600/80',
+    text: 'text-teal-900',
+    subtext: 'text-teal-600/80',
+    primaryBtn: 'bg-teal-50 text-teal-600 border border-teal-200 shadow-[0_0_10px_rgba(45,212,191,0.2)] hover:shadow-[0_0_15px_rgba(45,212,191,0.4)] transition-all rounded-2xl',
+    secondaryBtn: 'bg-white text-teal-600/70 border border-teal-100 hover:bg-teal-50/50 rounded-2xl',
+    secondaryBtnActive: 'bg-teal-50 border-teal-100 text-teal-600 shadow-[0_0_10px_rgba(45,212,191,0.15)] rounded-2xl',
+    accent: 'text-teal-400',
+    iconBg: 'bg-teal-50 border border-teal-100 shadow-[0_0_10px_rgba(45,212,191,0.2)]',
+    iconColor: 'text-teal-500',
     blobs: false
   },
   'bubble-pastel': {
-    bg: 'bg-pink-50',
-    card: 'bg-white rounded-[40px] border-4 border-pink-200 shadow-none',
-    header: 'bg-pink-100 border-b-4 border-pink-200 p-8 text-center relative overflow-hidden',
-    headerText: 'text-pink-600',
-    headerSubtext: 'text-pink-400',
-    text: 'text-slate-800',
-    subtext: 'text-slate-500',
-    primaryBtn: 'bg-gradient-to-r from-pink-400 to-purple-400 text-white rounded-full shadow-[0_4px_0_rgb(219,39,119)] active:translate-y-[4px] active:shadow-none transition-all',
-    secondaryBtn: 'bg-pink-50 text-pink-600 rounded-full hover:bg-pink-100 border-2 border-pink-200',
-    secondaryBtnActive: 'bg-pink-200 border-pink-400 text-pink-700',
-    accent: 'text-pink-500',
-    iconBg: 'bg-white border-2 border-pink-200 rounded-full',
-    iconColor: 'text-pink-500',
+    bg: 'bg-[#ebf7f3]',
+    card: 'bg-white rounded-[35px] border-4 border-[#d1efe3] shadow-none',
+    header: 'bg-[#e0f2eb] border-b-4 border-[#d1efe3] p-8 text-center relative overflow-hidden',
+    headerText: 'text-teal-800',
+    headerSubtext: 'text-teal-500',
+    text: 'text-teal-800',
+    subtext: 'text-teal-500',
+    primaryBtn: 'bg-gradient-to-r from-[#86e3ce] to-[#6ee7b7] text-teal-900 rounded-full shadow-[0_4px_0_#34d399] active:translate-y-[4px] active:shadow-none transition-all',
+    secondaryBtn: 'bg-white text-teal-600 rounded-full hover:bg-[#d1efe3]/30 border-2 border-[#d1efe3]',
+    secondaryBtnActive: 'bg-[#d1efe3] border-[#86e3ce] text-teal-800 rounded-full',
+    accent: 'text-[#34d399]',
+    iconBg: 'bg-[#d1efe3] border-2 border-[#86e3ce] rounded-full',
+    iconColor: 'text-teal-600',
     blobs: false
   },
   'calm-minimal': {
-    bg: 'bg-[#fdfbf7]',
-    card: 'bg-white border border-slate-100 shadow-sm rounded-3xl',
-    header: 'bg-[#fdfbf7] border-b border-slate-100 p-8 text-center relative overflow-hidden',
-    headerText: 'text-slate-800 font-light',
+    bg: 'bg-[#f9fcfb]',
+    card: 'bg-white border border-[#e2f0eb] shadow-sm rounded-[25px]',
+    header: 'bg-white border-b border-[#e2f0eb] p-8 text-center relative overflow-hidden',
+    headerText: 'text-slate-700 font-light',
     headerSubtext: 'text-slate-500 font-light',
-    text: 'text-slate-800 font-light',
+    text: 'text-slate-700 font-light',
     subtext: 'text-slate-500 font-light',
-    primaryBtn: 'bg-[#f0ece1] text-slate-700 hover:bg-[#e6e0d4] font-light tracking-wide rounded-2xl',
-    secondaryBtn: 'bg-transparent border border-[#f0ece1] text-slate-500 hover:bg-[#fdfbf7] rounded-2xl',
-    secondaryBtnActive: 'bg-[#f0ece1] text-slate-800 border-[#e6e0d4]',
-    accent: 'text-[#d4c5b0]',
-    iconBg: 'bg-[#fdfbf7] border border-slate-100',
-    iconColor: 'text-slate-600',
+    primaryBtn: 'bg-[#eef8f4] text-teal-700 hover:bg-[#e2f0eb] font-light tracking-wide rounded-2xl',
+    secondaryBtn: 'bg-white border border-[#e2f0eb] text-slate-500 hover:bg-[#f4fbf8] rounded-2xl',
+    secondaryBtnActive: 'bg-[#eef8f4] text-teal-800 border-none rounded-2xl',
+    accent: 'text-teal-600',
+    iconBg: 'bg-[#eef8f4] border border-[#e2f0eb]',
+    iconColor: 'text-teal-600',
+    blobs: false
+  },
+  'cyberpunk-neon': {
+    bg: 'bg-gray-950',
+    card: 'bg-gray-900/80 border border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.2)] rounded-xl',
+    header: 'bg-gray-900 border-b border-cyan-500/30 p-8 text-center relative overflow-hidden',
+    headerText: 'text-cyan-400',
+    headerSubtext: 'text-cyan-600',
+    text: 'text-cyan-400',
+    subtext: 'text-cyan-600',
+    primaryBtn: 'bg-gray-900 text-cyan-400 border border-cyan-400 hover:shadow-[0_0_15px_rgba(6,182,212,0.6)] transition-all',
+    secondaryBtn: 'bg-gray-900 text-cyan-700 border border-cyan-900 hover:border-cyan-700',
+    secondaryBtnActive: 'bg-gray-800 border-cyan-400 text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.3)]',
+    accent: 'text-cyan-400',
+    iconBg: 'bg-gray-900 border border-cyan-500/50 shadow-[0_0_10px_rgba(6,182,212,0.2)]',
+    iconColor: 'text-cyan-400',
+    blobs: false
+  },
+  'sunset-gradient': {
+    bg: 'bg-gradient-to-br from-orange-100 via-red-50 to-pink-100',
+    card: 'bg-white/60 backdrop-blur-xl border border-orange-200/50 shadow-lg rounded-[2rem]',
+    header: 'bg-white/40 border-b border-orange-200/50 p-8 text-center relative overflow-hidden',
+    headerText: 'text-orange-900',
+    headerSubtext: 'text-orange-700',
+    text: 'text-orange-900',
+    subtext: 'text-orange-700',
+    primaryBtn: 'bg-gradient-to-r from-orange-400 to-pink-500 text-white hover:opacity-90 shadow-md',
+    secondaryBtn: 'bg-white/50 text-orange-600 border border-orange-200 hover:bg-white/80',
+    secondaryBtnActive: 'bg-orange-100 border-orange-300 text-orange-800',
+    accent: 'text-orange-500',
+    iconBg: 'bg-white/80 border border-orange-200',
+    iconColor: 'text-orange-500',
+    blobs: true
+  },
+  'ocean-breeze': {
+    bg: 'bg-gradient-to-br from-cyan-50 via-blue-50 to-teal-50',
+    card: 'bg-white/70 backdrop-blur-xl border border-cyan-100 shadow-xl rounded-[2rem]',
+    header: 'bg-white/50 border-b border-cyan-100 p-8 text-center relative overflow-hidden',
+    headerText: 'text-cyan-900',
+    headerSubtext: 'text-cyan-700',
+    text: 'text-cyan-900',
+    subtext: 'text-cyan-700',
+    primaryBtn: 'bg-cyan-600 hover:bg-cyan-700 text-white shadow-md',
+    secondaryBtn: 'bg-white/60 text-cyan-600 border border-cyan-200 hover:bg-white/90',
+    secondaryBtnActive: 'bg-cyan-100 border-cyan-300 text-cyan-800',
+    accent: 'text-cyan-600',
+    iconBg: 'bg-white/90 border border-cyan-100',
+    iconColor: 'text-cyan-600',
+    blobs: true
+  },
+  'midnight-monolith': {
+    bg: 'bg-black',
+    card: 'bg-[#111] border border-gray-800 rounded-2xl shadow-2xl',
+    header: 'bg-[#0a0a0a] border-b border-gray-800 p-8 text-center relative overflow-hidden',
+    headerText: 'text-gray-100',
+    headerSubtext: 'text-gray-400',
+    text: 'text-gray-100',
+    subtext: 'text-gray-400',
+    primaryBtn: 'bg-white text-black hover:bg-gray-200 rounded-lg',
+    secondaryBtn: 'bg-[#111] text-gray-500 border border-gray-800 hover:bg-gray-900',
+    secondaryBtnActive: 'bg-gray-900 border-gray-700 text-white',
+    accent: 'text-white',
+    iconBg: 'bg-[#111] border border-gray-800',
+    iconColor: 'text-white',
     blobs: false
   },
   'default': {
@@ -139,7 +203,7 @@ export default function ShopReview() {
           type: parsed.t || '',
           keywords: parsed.k || '',
           reviewLink: parsed.l || '',
-          theme: parsed.th || 'default'
+          theme: parsed.th || 'mint-neumorphism'
         };
       } catch (e) {
         console.error("Failed to parse initial data", e);
@@ -279,13 +343,66 @@ export default function ShopReview() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-        <div className="flex flex-col items-center justify-center">
-          <div className="relative w-16 h-16 mb-4">
-            <div className="absolute inset-0 border-4 border-slate-200 rounded-full"></div>
-            <div className="absolute inset-0 border-4 border-slate-800 rounded-full border-t-transparent animate-spin"></div>
-          </div>
-          <p className="text-slate-500 font-medium animate-pulse">Loading experience...</p>
+      <div className="min-h-screen bg-[#e0f2eb] flex items-center justify-center p-6 overflow-hidden">
+        <div className="flex flex-col items-center justify-center relative">
+          {/* Bouncing Liquid Bubble */}
+          <motion.div
+            animate={{
+              y: [0, -30, 0],
+              scaleX: [1, 0.85, 1.15, 1],
+              scaleY: [1, 1.15, 0.85, 1],
+              borderRadius: [
+                "40% 60% 70% 30% / 40% 50% 60% 50%",
+                "60% 40% 30% 70% / 60% 30% 70% 40%",
+                "50% 50% 50% 50% / 50% 50% 50% 50%",
+                "40% 60% 70% 30% / 40% 50% 60% 50%"
+              ]
+            }}
+            transition={{
+              duration: 1.5,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            className="w-24 h-24 bg-gradient-to-br from-[#86e3ce] to-[#6ee7b7] shadow-[8px_8px_16px_#becece,-8px_-8px_16px_#ffffff] mb-8 relative flex flex-col items-center justify-center z-10"
+          >
+            {/* Cute face inside the bubble */}
+            <div className="flex gap-3 mt-2">
+              <motion.div 
+                animate={{ scaleY: [1, 0.1, 1] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", times: [0, 0.05, 0.1] }}
+                className="w-2.5 h-3.5 bg-teal-900 rounded-full" 
+              />
+              <motion.div 
+                animate={{ scaleY: [1, 0.1, 1] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", times: [0, 0.05, 0.1] }}
+                className="w-2.5 h-3.5 bg-teal-900 rounded-full" 
+              />
+            </div>
+            {/* Smile */}
+            <div className="w-4 h-2 border-b-2 border-teal-900 rounded-full mt-1" />
+          </motion.div>
+          
+          {/* Shadow under the bubble */}
+          <motion.div
+            animate={{
+              scale: [1, 0.6, 1],
+              opacity: [0.3, 0.1, 0.3]
+            }}
+            transition={{
+              duration: 1.5,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            className="w-16 h-3 bg-teal-900/20 rounded-[100%] blur-[2px] mb-6 absolute top-[90px]"
+          />
+
+          <motion.p 
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+            className="text-teal-700 font-bold tracking-widest uppercase text-sm mt-4"
+          >
+            Loading experience...
+          </motion.p>
         </div>
       </div>
     );
@@ -304,7 +421,35 @@ export default function ShopReview() {
   }
 
   const displayShop = shop;
-  const currentTheme = THEMES[(displayShop.theme as keyof typeof THEMES)] || THEMES['default'];
+  const currentTheme = THEMES[(displayShop.theme as keyof typeof THEMES)] || THEMES['mint-neumorphism'];
+  const isSimpleMode = searchParams.get('mode') === 'simple';
+
+  if (isSimpleMode) {
+    return (
+      <div className={`min-h-screen ${currentTheme.bg} flex flex-col items-center justify-center p-4 sm:p-6 font-sans relative overflow-hidden transition-colors duration-500`}>
+        <motion.div 
+          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          className={`w-full max-w-md ${currentTheme.card} overflow-hidden relative z-10 p-8 text-center`}
+        >
+          <div className={`w-20 h-20 ${currentTheme.iconBg} rounded-3xl flex items-center justify-center mx-auto mb-6`}>
+            <Store className={`w-10 h-10 ${currentTheme.iconColor}`} />
+          </div>
+          <h1 className={`text-3xl font-black ${currentTheme.headerText} mb-2`}>How was your experience?</h1>
+          <p className={`${currentTheme.subtext} font-medium mb-8`}>We'd love to hear your feedback about {displayShop.name}.</p>
+          
+          <a
+            href={displayShop.reviewLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`w-full py-4 rounded-2xl font-black text-lg transition-all flex items-center justify-center gap-2 ${currentTheme.primaryBtn}`}
+          >
+            Click Here to Review <ExternalLink className="w-5 h-5" />
+          </a>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen ${currentTheme.bg} flex flex-col items-center justify-center p-4 sm:p-6 font-sans relative overflow-hidden transition-colors duration-500`}>
