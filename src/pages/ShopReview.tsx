@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Copy, CheckCircle2, Store, Sparkles, Star, Edit2, ExternalLink } from 'lucide-react';
@@ -191,11 +191,11 @@ export default function ShopReview() {
   const [searchParams] = useSearchParams();
   
   // Parse initial data from URL if available
-  const initialData = (() => {
-    const d = searchParams.get('d');
-    if (d) {
+  const dParam = searchParams.get('d');
+  const initialData = useMemo(() => {
+    if (dParam) {
       try {
-        const parsed = JSON.parse(decodeURIComponent(atob(d)));
+        const parsed = JSON.parse(decodeURIComponent(atob(dParam)));
         return {
           id: shopId || '',
           name: parsed.n || '',
@@ -210,7 +210,7 @@ export default function ShopReview() {
       }
     }
     return null;
-  })();
+  }, [dParam, shopId]);
 
   const [shop, setShop] = useState<Shop | null>(initialData);
   const [loading, setLoading] = useState(!initialData);
