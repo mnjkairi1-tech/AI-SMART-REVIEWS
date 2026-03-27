@@ -373,6 +373,13 @@ export default function AdminDashboard() {
 
   const handleThemeChange = async (themeId: string) => {
     if (!selectedShopForTheme) return;
+    
+    if (!selectedShopForTheme.shopContextPrompt) {
+      toast.error('Please edit the shop and add AI Instructions first.');
+      setShowThemeModal(false);
+      return;
+    }
+
     try {
       const shopRef = doc(db, 'shops', selectedShopForTheme.id);
       await updateDoc(shopRef, { theme: themeId });
@@ -1060,13 +1067,14 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className={`block text-sm font-bold ${currentTheme.text} mb-2`}>Shop Context / AI Instructions (Optional)</label>
+                <label className={`block text-sm font-bold ${currentTheme.text} mb-2`}>Shop Context / AI Instructions <span className="text-red-500">*</span></label>
                 <textarea
                   value={shopContextPrompt}
                   onChange={(e) => setShopContextPrompt(e.target.value)}
                   className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-pink-500/20 focus:border-pink-500 outline-none transition-all font-medium text-slate-800"
                   placeholder="E.g., We are a family-owned Italian restaurant. We have 5 staff members. Our specialty is wood-fired pizza..."
                   rows={4}
+                  required
                 />
                 <p className={`text-xs mt-2 ${currentTheme.subtext}`}>This context helps AI generate smart feedback options and personalized reviews for your customers.</p>
               </div>
