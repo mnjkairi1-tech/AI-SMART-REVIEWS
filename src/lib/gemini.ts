@@ -31,7 +31,7 @@ function getAIClient() {
   return aiClient;
 }
 
-export async function generateReviews(shopName: string, shopType: string, keywords: string[], rating: number, categories: string[]) {
+export async function generateReviews(shopName: string, shopType: string, keywords: string[], rating: number, categories: string[], shopContextPrompt?: string) {
   try {
     // Ab hum direct Gemini ko call nahi kar rahe, balki apne Vercel backend ko call kar rahe hain
     const response = await fetch('/api/generate', {
@@ -44,7 +44,8 @@ export async function generateReviews(shopName: string, shopType: string, keywor
         shopType,
         keywords,
         rating,
-        categories
+        categories,
+        shopContextPrompt
       }),
     });
 
@@ -58,5 +59,35 @@ export async function generateReviews(shopName: string, shopType: string, keywor
   } catch (error: any) {
     console.error("Error generating reviews:", error);
     throw new Error(error?.message || "Failed to generate reviews. Please try again.");
+  }
+}
+
+export async function generateDynamicOptions(shopName: string, shopContextPrompt?: string) {
+  try {
+    const response = await fetch('/api/generateOptions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        shopName,
+        shopContextPrompt
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to generate options from backend.");
+    }
+
+    return data;
+  } catch (error: any) {
+    console.error("Error generating options:", error);
+    // Fallback options if API fails
+    return {
+      liked: ['Friendly Staff', 'Clean Environment', 'Great Service', 'Good Quality', 'Fast Service', 'Nice Atmosphere', 'Tasty Food', 'Good Value', 'Professional', 'Helpful'],
+      disliked: ['Slow Service', 'Dirty', 'Rude Staff', 'Poor Quality', 'Expensive', 'Noisy', 'Bad Taste', 'Unprofessional', 'Unhelpful', 'Crowded']
+    };
   }
 }

@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { Copy, CheckCircle2, Store, Sparkles, Star, Edit2, ExternalLink } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, getDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { generateReviews } from '../lib/gemini';
+import { generateReviews, generateDynamicOptions } from '../lib/gemini';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { motion, AnimatePresence } from 'motion/react';
@@ -20,6 +20,7 @@ interface Shop {
   keywords: string[];
   reviewLink: string;
   theme?: string;
+  shopContextPrompt?: string;
 }
 
 const THEMES = {
@@ -185,8 +186,6 @@ const THEMES = {
   }
 };
 
-const CATEGORIES = ['Staff', 'Cleanliness', 'Service', 'Price', 'Vibe'];
-
 export default function ShopReview() {
   const { shopId } = useParams<{ shopId: string }>();
   const [searchParams] = useSearchParams();
@@ -219,7 +218,11 @@ export default function ShopReview() {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [selectedRating, setSelectedRating] = useState<number>(0);
   const [hoveredRating, setHoveredRating] = useState<number>(0);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [likedOptions, setLikedOptions] = useState<string[]>([]);
+  const [dislikedOptions, setDislikedOptions] = useState<string[]>([]);
+  const [selectedLiked, setSelectedLiked] = useState<string[]>([]);
+  const [selectedDisliked, setSelectedDisliked] = useState<string[]>([]);
+  const [optionsLoading, setOptionsLoading] = useState(true);
   
   const [generatedReviews, setGeneratedReviews] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -253,11 +256,20 @@ export default function ShopReview() {
           if (shopData.theme) {
             localStorage.setItem(`theme_${shopId}`, shopData.theme);
           }
+          
+          // Generate dynamic options
+          setOptionsLoading(true);
+          const options = await generateDynamicOptions(shopData.name, shopData.shopContextPrompt);
+          setLikedOptions(options.liked || []);
+          setDislikedOptions([...(options.disliked || []), 'None']);
+          setOptionsLoading(false);
         } else {
           toast.error('Shop not found');
+          setOptionsLoading(false);
         }
       } catch (error) {
         handleFirestoreError(error, OperationType.GET, `shops/${shopId}`);
+        setOptionsLoading(false);
       } finally {
         setLoading(false);
       }
@@ -265,15 +277,34 @@ export default function ShopReview() {
     fetchShop();
   }, [shopId, initialData]);
 
-  const toggleCategory = (cat: string) => {
-    setSelectedCategories(prev => 
+  const toggleLiked = (cat: string) => {
+    setSelectedLiked(prev => 
       prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
     );
   };
 
+  const toggleDisliked = (cat: string) => {
+    if (cat === 'None') {
+      setSelectedDisliked(['None']);
+      return;
+    }
+    setSelectedDisliked(prev => {
+      const newSelection = prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat];
+      return newSelection.filter(c => c !== 'None');
+    });
+  };
+
   const handleStarClick = async (rating: number) => {
     if (!shop) return;
+    
+    if (selectedLiked.length === 0 || selectedDisliked.length === 0) {
+      toast.error('Please select at least one option from both sections before rating.');
+      return;
+    }
+
     setSelectedRating(rating);
+    
+    const combinedCategories = [...selectedLiked, ...selectedDisliked.filter(d => d !== 'None')];
     
     if (rating >= 3) {
       setIsGenerating(true);
@@ -284,10 +315,11 @@ export default function ShopReview() {
           shop.type,
           shop.keywords,
           rating,
-          selectedCategories
+          combinedCategories,
+          shop.shopContextPrompt
         );
         setGeneratedReviews(reviews);
-        logInteraction(rating, selectedCategories, true);
+        logInteraction(rating, combinedCategories, true);
         setStep(3); // Reviews step
       } catch (error: any) {
         toast.error(error?.message || 'Failed to generate reviews. Please try again.');
@@ -297,7 +329,7 @@ export default function ShopReview() {
       }
     } else {
       // 1 or 2 stars -> Manual text box
-      logInteraction(rating, selectedCategories, false);
+      logInteraction(rating, combinedCategories, false);
       setStep(4);
     }
   };
@@ -341,7 +373,7 @@ export default function ShopReview() {
     }, 1500);
   };
 
-  if (loading) {
+  if (loading || optionsLoading) {
     return (
       <div className="min-h-screen bg-[#e0f2eb] flex items-center justify-center p-6 overflow-hidden">
         <div className="flex flex-col items-center justify-center relative">
@@ -499,16 +531,16 @@ export default function ShopReview() {
                 exit={{ opacity: 0, scale: 0.9 }}
                 className="text-center py-2"
               >
-                <div className="mb-8">
-                  <p className={`text-xs font-bold ${currentTheme.subtext} mb-3 uppercase tracking-wider`}>What stood out? (Optional)</p>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {CATEGORIES.map(cat => (
+                <div className="mb-8 text-left">
+                  <p className={`text-sm font-bold ${currentTheme.subtext} mb-3 uppercase tracking-wider`}>What did you like? <span className="text-red-500">*</span></p>
+                  <div className="flex flex-wrap gap-2">
+                    {likedOptions.map(cat => (
                       <button
                         key={cat}
-                        onClick={() => toggleCategory(cat)}
+                        onClick={() => toggleLiked(cat)}
                         className={cn(
                           "px-3 py-1.5 rounded-full text-xs font-bold transition-all border-2",
-                          selectedCategories.includes(cat) 
+                          selectedLiked.includes(cat) 
                             ? currentTheme.secondaryBtnActive 
                             : currentTheme.secondaryBtn
                         )}
@@ -519,7 +551,27 @@ export default function ShopReview() {
                   </div>
                 </div>
 
-                <h2 className={`text-2xl font-black ${currentTheme.text} mb-2`}>How was your experience?</h2>
+                <div className="mb-8 text-left">
+                  <p className={`text-sm font-bold ${currentTheme.subtext} mb-3 uppercase tracking-wider`}>What could be improved? <span className="text-red-500">*</span></p>
+                  <div className="flex flex-wrap gap-2">
+                    {dislikedOptions.map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => toggleDisliked(cat)}
+                        className={cn(
+                          "px-3 py-1.5 rounded-full text-xs font-bold transition-all border-2",
+                          selectedDisliked.includes(cat) 
+                            ? currentTheme.secondaryBtnActive 
+                            : currentTheme.secondaryBtn
+                        )}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <h2 className={`text-2xl font-black ${currentTheme.text} mb-2`}>How was your overall experience?</h2>
                 <p className={`${currentTheme.subtext} font-medium mb-6`}>Tap a star to rate your visit</p>
                 
                 <div className="flex justify-center gap-2 sm:gap-4">

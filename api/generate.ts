@@ -8,7 +8,7 @@ export default async function handler(req: any, res: any) {
 
   try {
     // Frontend se data receive kar rahe hain
-    const { shopName, shopType, keywords, rating, categories } = req.body;
+    const { shopName, shopType, keywords, rating, categories, shopContextPrompt } = req.body;
 
     // Vercel ke environment variables se API key uthayenge (Backend me safe hai)
     const apiKey = process.env.GEMINI_API_KEY;
@@ -38,6 +38,7 @@ export default async function handler(req: any, res: any) {
       Business Keywords: ${keywords.join(", ")}
       Customer Rating: ${rating} out of 5 stars
       Selected Categories: ${categories && categories.length > 0 ? categories.join(", ") : "General experience"}
+      Business Context / Owner Instructions: ${shopContextPrompt || 'No specific instructions provided.'}
 
       Generate exactly 10 unique, natural-sounding, and helpful reviews that the customer can copy and paste.
       
@@ -46,7 +47,7 @@ export default async function handler(req: any, res: any) {
       2. Length: Short (1-3 sentences maximum).
       3. Variety: Every review MUST be completely different. Do NOT repeat the same phrases or lines.
       4. Human-like: Make them sound like real people wrote them (use casual language, occasional exclamation marks, very natural phrasing).
-      5. Context: Incorporate the selected categories if provided.
+      5. Context: Incorporate the selected categories and the Business Context/Owner Instructions to make the reviews highly specific and relevant to this exact shop.
     `;
 
     // Gemini API ko call kar rahe hain (Backend se)

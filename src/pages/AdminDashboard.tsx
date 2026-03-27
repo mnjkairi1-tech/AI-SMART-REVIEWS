@@ -17,6 +17,7 @@ interface Shop {
   ownerId: string;
   createdAt: any;
   theme?: string;
+  shopContextPrompt?: string;
 }
 
 type Tab = 'shops' | 'analytics' | 'settings' | 'superadmin';
@@ -176,6 +177,7 @@ export default function AdminDashboard() {
   const [type, setType] = useState('');
   const [keywords, setKeywords] = useState('');
   const [reviewLink, setReviewLink] = useState('');
+  const [shopContextPrompt, setShopContextPrompt] = useState('');
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -309,6 +311,7 @@ export default function AdminDashboard() {
           type,
           keywords: keywordArray,
           reviewLink,
+          shopContextPrompt,
         });
         toast.success('Shop updated successfully');
       } else {
@@ -317,6 +320,7 @@ export default function AdminDashboard() {
           type,
           keywords: keywordArray,
           reviewLink,
+          shopContextPrompt,
           ownerId: user.uid,
           createdAt: serverTimestamp(),
         });
@@ -349,6 +353,7 @@ export default function AdminDashboard() {
     setType('');
     setKeywords('');
     setReviewLink('');
+    setShopContextPrompt('');
   };
 
   const openEditModal = (shop: Shop) => {
@@ -357,6 +362,7 @@ export default function AdminDashboard() {
     setType(shop.type);
     setKeywords(shop.keywords.join(', '));
     setReviewLink(shop.reviewLink);
+    setShopContextPrompt(shop.shopContextPrompt || '');
     setShowAddModal(true);
   };
 
@@ -381,8 +387,67 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-pink-200 border-t-pink-500 rounded-full animate-spin"></div>
+      <div className="min-h-screen bg-[#e0f2eb] flex items-center justify-center p-6 overflow-hidden">
+        <div className="flex flex-col items-center justify-center relative">
+          {/* Bouncing Liquid Bubble */}
+          <motion.div
+            animate={{
+              y: [0, -30, 0],
+              scaleX: [1, 0.85, 1.15, 1],
+              scaleY: [1, 1.15, 0.85, 1],
+              borderRadius: [
+                "40% 60% 70% 30% / 40% 50% 60% 50%",
+                "60% 40% 30% 70% / 60% 30% 70% 40%",
+                "50% 50% 50% 50% / 50% 50% 50% 50%",
+                "40% 60% 70% 30% / 40% 50% 60% 50%"
+              ]
+            }}
+            transition={{
+              duration: 1.5,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            className="w-24 h-24 bg-gradient-to-br from-[#86e3ce] to-[#6ee7b7] shadow-[8px_8px_16px_#becece,-8px_-8px_16px_#ffffff] mb-8 relative flex flex-col items-center justify-center z-10"
+          >
+            {/* Cute face inside the bubble */}
+            <div className="flex gap-3 mt-2">
+              <motion.div 
+                animate={{ scaleY: [1, 0.1, 1] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", times: [0, 0.05, 0.1] }}
+                className="w-2.5 h-3.5 bg-teal-900 rounded-full" 
+              />
+              <motion.div 
+                animate={{ scaleY: [1, 0.1, 1] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", times: [0, 0.05, 0.1] }}
+                className="w-2.5 h-3.5 bg-teal-900 rounded-full" 
+              />
+            </div>
+            {/* Smile */}
+            <div className="w-4 h-2 border-b-2 border-teal-900 rounded-full mt-1" />
+          </motion.div>
+          
+          {/* Shadow under the bubble */}
+          <motion.div
+            animate={{
+              scale: [1, 0.6, 1],
+              opacity: [0.3, 0.1, 0.3]
+            }}
+            transition={{
+              duration: 1.5,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            className="w-16 h-3 bg-teal-900/20 rounded-[100%] blur-[2px] mb-6 absolute top-[90px]"
+          />
+
+          <motion.p 
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+            className="text-teal-700 font-bold tracking-widest uppercase text-sm mt-4"
+          >
+            Loading dashboard...
+          </motion.p>
+        </div>
       </div>
     );
   }
@@ -993,6 +1058,17 @@ export default function AdminDashboard() {
                   className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-pink-500/20 focus:border-pink-500 outline-none transition-all font-medium text-slate-800"
                   placeholder="https://g.page/r/..."
                 />
+              </div>
+              <div>
+                <label className={`block text-sm font-bold ${currentTheme.text} mb-2`}>Shop Context / AI Instructions (Optional)</label>
+                <textarea
+                  value={shopContextPrompt}
+                  onChange={(e) => setShopContextPrompt(e.target.value)}
+                  className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-pink-500/20 focus:border-pink-500 outline-none transition-all font-medium text-slate-800"
+                  placeholder="E.g., We are a family-owned Italian restaurant. We have 5 staff members. Our specialty is wood-fired pizza..."
+                  rows={4}
+                />
+                <p className={`text-xs mt-2 ${currentTheme.subtext}`}>This context helps AI generate smart feedback options and personalized reviews for your customers.</p>
               </div>
               <div className="pt-4 flex gap-3">
                 <button
