@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { QrCode, Star, Zap } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -97,13 +97,20 @@ const DASHBOARD_THEMES = {
 
 export default function Landing() {
   const [themeId, setThemeId] = useState('mint-neumorphism');
+  const navigate = useNavigate();
 
   useEffect(() => {
+    const hasVisitedAdmin = localStorage.getItem('hasVisitedAdmin');
+    if (hasVisitedAdmin === 'true') {
+      navigate('/admin');
+      return;
+    }
+
     const savedTheme = localStorage.getItem('dashboardTheme');
     if (savedTheme && DASHBOARD_THEMES[savedTheme as keyof typeof DASHBOARD_THEMES]) {
       setThemeId(savedTheme);
     }
-  }, []);
+  }, [navigate]);
 
   const currentTheme = DASHBOARD_THEMES[themeId as keyof typeof DASHBOARD_THEMES] || DASHBOARD_THEMES['mint-neumorphism'];
 

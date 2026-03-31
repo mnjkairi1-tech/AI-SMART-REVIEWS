@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Copy, CheckCircle2, Store, Sparkles, Star, Edit2, ExternalLink } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { doc, getDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, addDoc, collection, serverTimestamp, updateDoc, setDoc } from 'firebase/firestore';
 import { generateReviews, generateDynamicOptions } from '../lib/gemini';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -19,8 +19,13 @@ interface Shop {
   type: string;
   keywords: string[];
   reviewLink: string;
+  ownerId?: string;
   theme?: string;
   shopContextPrompt?: string;
+  customRedirectUrl?: string;
+  isSmartQrEnabled?: boolean;
+  reviewFlow?: 'smart-then-simple' | 'simple-only';
+  globalReviewFlow?: 'smart-then-simple' | 'simple-only';
 }
 
 const THEMES = {
@@ -233,6 +238,9 @@ export default function ShopReview() {
   
   const [manualReview, setManualReview] = useState('');
   const [manualCopied, setManualCopied] = useState(false);
+  
+  const [autoSimpleMode, setAutoSimpleMode] = useState(false);
+  const [limitReached, setLimitReached] = useState(false);
 
   useEffect(() => {
     const fetchShop = async () => {
@@ -251,12 +259,67 @@ export default function ShopReview() {
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const shopData = { id: docSnap.id, ...docSnap.data() } as Shop;
+          
+          // Redirect if smart QR is enabled
+          if (shopData.isSmartQrEnabled && shopData.customRedirectUrl && shopData.customRedirectUrl.trim() !== '') {
+            let redirectUrl = shopData.customRedirectUrl.trim();
+            if (!redirectUrl.startsWith('http://') && !redirectUrl.startsWith('https://')) {
+              redirectUrl = 'https://' + redirectUrl;
+            }
+            document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;font-weight:bold;color:#333;background:#f8fafc;">Redirecting...</div>';
+            window.location.href = redirectUrl;
+            return;
+          }
+
           setShop(shopData);
+          
+          // Fetch owner's global review flow setting
+          if (shopData.ownerId) {
+            try {
+              const userRef = doc(db, 'users', shopData.ownerId);
+              const userSnap = await getDoc(userRef);
+              if (userSnap.exists()) {
+                const userData = userSnap.data();
+                setShop(prev => prev ? { ...prev, globalReviewFlow: userData.globalReviewFlow } : prev);
+              }
+            } catch (err) {
+              console.error("Failed to fetch owner settings", err);
+            }
+          }
+
           // 2. Cache the latest theme
           if (shopData.theme) {
             localStorage.setItem(`theme_${shopId}`, shopData.theme);
           }
           
+          // Check limits
+          if (shopData.ownerId) {
+            try {
+              const statsRef = doc(db, 'ownerStats', shopData.ownerId);
+              const statsSnap = await getDoc(statsRef);
+              if (statsSnap.exists()) {
+                const stats = statsSnap.data();
+                const today = new Date().toISOString().split('T')[0];
+                const isToday = stats.lastUsageDate === today;
+                
+                const smartUsage = isToday ? (stats.smartAiUsage || 0) : 0;
+                const simpleUsage = isToday ? (stats.simpleAiUsage || 0) : 0;
+                const smartLimit = stats.smartAiLimit !== undefined ? stats.smartAiLimit : 100;
+                const simpleLimit = stats.simpleAiLimit !== undefined ? stats.simpleAiLimit : 100;
+
+                if (smartUsage >= smartLimit) {
+                  if (simpleUsage >= simpleLimit) {
+                    setLimitReached(true);
+                  } else {
+                    setAutoSimpleMode(true);
+                  }
+                }
+              }
+            } catch (err) {
+              console.error("Failed to check limits", err);
+            }
+          }
+
           // Generate dynamic options
           setOptionsLoading(true);
           const options = await generateDynamicOptions(shopData.name, shopData.shopContextPrompt);
@@ -334,6 +397,44 @@ export default function ShopReview() {
     }
   };
 
+  const incrementUsage = async (type: 'smartAiUsage' | 'simpleAiUsage') => {
+    if (!shop?.ownerId) return;
+    try {
+      const statsRef = doc(db, 'ownerStats', shop.ownerId);
+      const statsSnap = await getDoc(statsRef);
+      const today = new Date().toISOString().split('T')[0];
+      
+      if (statsSnap.exists()) {
+        const stats = statsSnap.data();
+        const isToday = stats.lastUsageDate === today;
+        
+        if (isToday) {
+          const currentUsage = stats[type] || 0;
+          await updateDoc(statsRef, {
+            [type]: currentUsage + 1
+          });
+        } else {
+          // New day, reset both usages
+          await updateDoc(statsRef, {
+            smartAiUsage: type === 'smartAiUsage' ? 1 : 0,
+            simpleAiUsage: type === 'simpleAiUsage' ? 1 : 0,
+            lastUsageDate: today
+          });
+        }
+      } else {
+        await setDoc(statsRef, {
+          smartAiLimit: 100,
+          simpleAiLimit: 100,
+          smartAiUsage: type === 'smartAiUsage' ? 1 : 0,
+          simpleAiUsage: type === 'simpleAiUsage' ? 1 : 0,
+          lastUsageDate: today
+        });
+      }
+    } catch (error) {
+      console.error("Failed to increment usage", error);
+    }
+  };
+
   const logInteraction = async (r: number, cats: string[], generated: boolean) => {
     if (!shopId) return;
     try {
@@ -344,6 +445,13 @@ export default function ShopReview() {
         reviewGenerated: generated,
         createdAt: serverTimestamp()
       });
+      
+      // Increment usage based on mode
+      if (generated) {
+        await incrementUsage('smartAiUsage');
+      } else if (isSimpleMode && !limitReached) {
+        await incrementUsage('simpleAiUsage');
+      }
     } catch (error) {
       console.error("Failed to log interaction", error);
     }
@@ -454,7 +562,25 @@ export default function ShopReview() {
 
   const displayShop = shop;
   const currentTheme = THEMES[(displayShop.theme as keyof typeof THEMES)] || THEMES['mint-neumorphism'];
-  const isSimpleMode = searchParams.get('mode') === 'simple';
+  const isSimpleMode = searchParams.get('mode') === 'simple' || autoSimpleMode || (displayShop.reviewFlow || displayShop.globalReviewFlow || 'smart-then-simple') === 'simple-only';
+
+  if (limitReached) {
+    return (
+      <div className={`min-h-screen ${currentTheme.bg} flex flex-col items-center justify-center p-4 sm:p-6 font-sans relative overflow-hidden transition-colors duration-500`}>
+        <motion.div 
+          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          className={`w-full max-w-md ${currentTheme.card} overflow-hidden relative z-10 p-8 text-center`}
+        >
+          <div className={`w-20 h-20 ${currentTheme.iconBg} rounded-3xl flex items-center justify-center mx-auto mb-6`}>
+            <Store className={`w-10 h-10 ${currentTheme.iconColor}`} />
+          </div>
+          <h1 className={`text-3xl font-black ${currentTheme.headerText} mb-2`}>Daily Limit Reached</h1>
+          <p className={`${currentTheme.subtext} font-medium mb-8`}>This QR code has reached its daily scan limit. Please try again tomorrow.</p>
+        </motion.div>
+      </div>
+    );
+  }
 
   if (isSimpleMode) {
     return (
@@ -475,6 +601,7 @@ export default function ShopReview() {
             target="_blank"
             rel="noopener noreferrer"
             className={`w-full py-4 rounded-2xl font-black text-lg transition-all flex items-center justify-center gap-2 ${currentTheme.primaryBtn}`}
+            onClick={() => logInteraction(5, [], false)}
           >
             Click Here to Review <ExternalLink className="w-5 h-5" />
           </a>

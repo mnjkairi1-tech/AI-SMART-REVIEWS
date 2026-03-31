@@ -90,15 +90,17 @@ service cloud.firestore {
     // ===============================================================
 
     function isValidUser(data) {
-      return hasOnlyAllowedFields(['email', 'role', 'createdAt', 'isBlocked']) &&
+      return hasOnlyAllowedFields(['email', 'role', 'createdAt', 'isBlocked', 'smartAiLimit', 'simpleAiLimit']) &&
              data.email is string && isValidEmail(data.email) &&
              data.role in ['admin', 'owner'] &&
              data.createdAt is timestamp &&
-             (!('isBlocked' in data) || data.isBlocked is bool);
+             (!('isBlocked' in data) || data.isBlocked is bool) &&
+             (!('smartAiLimit' in data) || (data.smartAiLimit is number && data.smartAiLimit >= 0)) &&
+             (!('simpleAiLimit' in data) || (data.simpleAiLimit is number && data.simpleAiLimit >= 0));
     }
 
     function isValidShop(data) {
-      return hasOnlyAllowedFields(['name', 'type', 'keywords', 'reviewLink', 'ownerId', 'createdAt', 'theme', 'shopContextPrompt']) &&
+      return hasOnlyAllowedFields(['name', 'type', 'keywords', 'reviewLink', 'ownerId', 'createdAt', 'theme', 'shopContextPrompt', 'customRedirectUrl', 'isSmartQrEnabled']) &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              data.type is string && data.type.size() > 0 && data.type.size() < 50 &&
              isValidList(data.keywords, 20) &&
@@ -106,7 +108,9 @@ service cloud.firestore {
              data.ownerId is string && data.ownerId.size() > 0 && data.ownerId.size() < 50 &&
              data.createdAt is timestamp &&
              (!('theme' in data) || (data.theme is string && data.theme.size() < 50)) &&
-             data.shopContextPrompt is string && data.shopContextPrompt.size() > 0 && data.shopContextPrompt.size() < 2000;
+             data.shopContextPrompt is string && data.shopContextPrompt.size() > 0 && data.shopContextPrompt.size() < 2000 &&
+             (!('customRedirectUrl' in data) || data.customRedirectUrl == '' || (isValidUrl(data.customRedirectUrl) && data.customRedirectUrl.size() < 500)) &&
+             (!('isSmartQrEnabled' in data) || data.isSmartQrEnabled is bool);
     }
 
     function isValidLog(data) {
@@ -121,6 +125,40 @@ service cloud.firestore {
     // ===============================================================
     // Rules
     // ===============================================================
+
+    function isValidOwnerStats(data) {
+      return hasOnlyAllowedFields(['smartAiLimit', 'simpleAiLimit', 'smartAiUsage', 'simpleAiUsage', 'lastUsageDate']) &&
+             data.smartAiLimit is number && data.smartAiLimit >= 0 &&
+             data.simpleAiLimit is number && data.simpleAiLimit >= 0 &&
+             data.smartAiUsage is number && data.smartAiUsage >= 0 &&
+             data.simpleAiUsage is number && data.simpleAiUsage >= 0 &&
+             data.lastUsageDate is string;
+    }
+
+    match /ownerStats/{ownerId} {
+      allow read: if true;
+      allow create: if (isAuthenticated() && (isAdmin() || isOwner(ownerId)) && isValidOwnerStats(request.resource.data)) || (
+        isValidOwnerStats(request.resource.data) &&
+        request.resource.data.smartAiLimit == 100 &&
+        request.resource.data.simpleAiLimit == 100 &&
+        request.resource.data.smartAiUsage <= 1 &&
+        request.resource.data.simpleAiUsage <= 1
+      );
+      allow update: if isAdmin() || (
+        request.resource.data.smartAiLimit == resource.data.smartAiLimit &&
+        request.resource.data.simpleAiLimit == resource.data.simpleAiLimit &&
+        isValidOwnerStats(request.resource.data) &&
+        (
+          (request.resource.data.lastUsageDate != resource.data.lastUsageDate &&
+           request.resource.data.smartAiUsage <= 1 &&
+           request.resource.data.simpleAiUsage <= 1) ||
+          (request.resource.data.lastUsageDate == resource.data.lastUsageDate &&
+           request.resource.data.smartAiUsage <= resource.data.smartAiUsage + 1 &&
+           request.resource.data.simpleAiUsage <= resource.data.simpleAiUsage + 1)
+        )
+      );
+      allow delete: if isAdmin();
+    }
 
     match /users/{userId} {
       // Anyone can read if they are the owner or an admin

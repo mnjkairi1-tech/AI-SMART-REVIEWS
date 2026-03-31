@@ -18,6 +18,9 @@ interface Shop {
   createdAt: any;
   theme?: string;
   shopContextPrompt?: string;
+  customRedirectUrl?: string;
+  isSmartQrEnabled?: boolean;
+  reviewFlow?: 'smart-then-simple' | 'simple-only';
 }
 
 type Tab = 'shops' | 'analytics' | 'settings' | 'superadmin';
@@ -167,6 +170,7 @@ export default function AdminDashboard() {
   const [allLogs, setAllLogs] = useState<any[]>([]);
   const [superAdminLoading, setSuperAdminLoading] = useState(false);
   const [superAdminFetched, setSuperAdminFetched] = useState(false);
+  const [editedLimits, setEditedLimits] = useState<Record<string, { smartAiLimit?: number, simpleAiLimit?: number }>>({});
   
   const [dashboardTheme, setDashboardTheme] = useState(() => {
     return localStorage.getItem('dashboardTheme') || 'mint-neumorphism';
@@ -178,8 +182,13 @@ export default function AdminDashboard() {
   const [keywords, setKeywords] = useState('');
   const [reviewLink, setReviewLink] = useState('');
   const [shopContextPrompt, setShopContextPrompt] = useState('');
+  const [customRedirectUrl, setCustomRedirectUrl] = useState('');
+  const [isSmartQrEnabled, setIsSmartQrEnabled] = useState(false);
+  const [reviewFlow, setReviewFlow] = useState<'smart-then-simple' | 'simple-only'>('smart-then-simple');
+  const [globalReviewFlow, setGlobalReviewFlow] = useState<'smart-then-simple' | 'simple-only'>('smart-then-simple');
 
   useEffect(() => {
+    localStorage.setItem('hasVisitedAdmin', 'true');
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
@@ -198,6 +207,7 @@ export default function AdminDashboard() {
             setDbUser(newUser);
           } else {
             setDbUser(userDocSnap.data());
+            setGlobalReviewFlow(userDocSnap.data().globalReviewFlow || 'smart-then-simple');
           }
         } catch (error) {
           console.error("Error ensuring user doc:", error);
@@ -248,6 +258,45 @@ export default function AdminDashboard() {
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'users');
       toast.error('Failed to update user status');
+    }
+  };
+
+  const saveUserLimits = async (userId: string) => {
+    const limits = editedLimits[userId];
+    if (!limits) return;
+
+    const user = allUsers.find(u => u.id === userId);
+    const smartVal = limits.smartAiLimit ?? user?.smartAiLimit ?? 100;
+    const simpleVal = limits.simpleAiLimit ?? user?.simpleAiLimit ?? 100;
+
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, { smartAiLimit: smartVal, simpleAiLimit: simpleVal });
+      
+      const statsRef = doc(db, 'ownerStats', userId);
+      const statsSnap = await getDoc(statsRef);
+      if (statsSnap.exists()) {
+        await updateDoc(statsRef, { smartAiLimit: smartVal, simpleAiLimit: simpleVal });
+      } else {
+        await setDoc(statsRef, {
+          smartAiLimit: smartVal,
+          simpleAiLimit: simpleVal,
+          smartAiUsage: 0,
+          simpleAiUsage: 0,
+          lastUsageDate: new Date().toISOString().split('T')[0]
+        });
+      }
+
+      toast.success(`Limits saved successfully`);
+      setAllUsers(allUsers.map(u => u.id === userId ? { ...u, smartAiLimit: smartVal, simpleAiLimit: simpleVal } : u));
+      setEditedLimits(prev => {
+        const next = { ...prev };
+        delete next[userId];
+        return next;
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'users');
+      toast.error('Failed to save limits');
     }
   };
 
@@ -312,6 +361,9 @@ export default function AdminDashboard() {
           keywords: keywordArray,
           reviewLink,
           shopContextPrompt,
+          customRedirectUrl,
+          isSmartQrEnabled,
+          reviewFlow,
         });
         toast.success('Shop updated successfully');
       } else {
@@ -321,6 +373,9 @@ export default function AdminDashboard() {
           keywords: keywordArray,
           reviewLink,
           shopContextPrompt,
+          customRedirectUrl,
+          isSmartQrEnabled,
+          reviewFlow,
           ownerId: user.uid,
           createdAt: serverTimestamp(),
         });
@@ -354,6 +409,9 @@ export default function AdminDashboard() {
     setKeywords('');
     setReviewLink('');
     setShopContextPrompt('');
+    setCustomRedirectUrl('');
+    setIsSmartQrEnabled(false);
+    setReviewFlow('smart-then-simple');
   };
 
   const openEditModal = (shop: Shop) => {
@@ -363,6 +421,9 @@ export default function AdminDashboard() {
     setKeywords(shop.keywords.join(', '));
     setReviewLink(shop.reviewLink);
     setShopContextPrompt(shop.shopContextPrompt || '');
+    setCustomRedirectUrl(shop.customRedirectUrl || '');
+    setIsSmartQrEnabled(shop.isSmartQrEnabled || false);
+    setReviewFlow(shop.reviewFlow || 'smart-then-simple');
     setShowAddModal(true);
   };
 
@@ -743,6 +804,34 @@ export default function AdminDashboard() {
               </div>
 
               <div className={`${currentTheme.card} p-8`}>
+                <h2 className={`text-xl font-bold ${currentTheme.text} mb-6`}>Global Review Flow</h2>
+                <div className="flex gap-4">
+                  <button
+                    onClick={async () => {
+                      setGlobalReviewFlow('smart-then-simple');
+                      await updateDoc(doc(db, 'users', user!.uid), { globalReviewFlow: 'smart-then-simple' });
+                      toast.success('Global flow updated!');
+                    }}
+                    className={`flex-1 p-4 rounded-2xl border-2 transition-all text-left ${globalReviewFlow === 'smart-then-simple' ? 'border-pink-500 bg-pink-50/50' : 'border-transparent bg-white/50 hover:bg-white/80'}`}
+                  >
+                    <h3 className={`font-bold ${currentTheme.text}`}>Smart then Simple</h3>
+                    <p className={`text-xs mt-1 ${currentTheme.subtext}`}>Default AI review flow.</p>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setGlobalReviewFlow('simple-only');
+                      await updateDoc(doc(db, 'users', user!.uid), { globalReviewFlow: 'simple-only' });
+                      toast.success('Global flow updated!');
+                    }}
+                    className={`flex-1 p-4 rounded-2xl border-2 transition-all text-left ${globalReviewFlow === 'simple-only' ? 'border-pink-500 bg-pink-50/50' : 'border-transparent bg-white/50 hover:bg-white/80'}`}
+                  >
+                    <h3 className={`font-bold ${currentTheme.text}`}>Simple Only</h3>
+                    <p className={`text-xs mt-1 ${currentTheme.subtext}`}>Direct simple review.</p>
+                  </button>
+                </div>
+              </div>
+
+              <div className={`${currentTheme.card} p-8`}>
                 <h2 className={`text-xl font-bold ${currentTheme.text} mb-6`}>Account</h2>
                 <div className="flex items-center gap-4 mb-8 p-4 bg-white/50 rounded-2xl border border-white">
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-pink-400 to-purple-500 flex items-center justify-center text-white font-bold text-xl shadow-md">
@@ -835,6 +924,8 @@ export default function AdminDashboard() {
                           <th className="pb-4 font-bold text-sm uppercase tracking-wider">Role</th>
                           <th className="pb-4 font-bold text-sm uppercase tracking-wider">Shops Owned</th>
                           <th className="pb-4 font-bold text-sm uppercase tracking-wider">QR Clicks</th>
+                          <th className="pb-4 font-bold text-sm uppercase tracking-wider">Smart AI Limit</th>
+                          <th className="pb-4 font-bold text-sm uppercase tracking-wider">Simple AI Limit</th>
                           <th className="pb-4 font-bold text-sm uppercase tracking-wider">Joined</th>
                           <th className="pb-4 font-bold text-sm uppercase tracking-wider">Status</th>
                           <th className="pb-4 font-bold text-sm uppercase tracking-wider">Action</th>
@@ -855,6 +946,36 @@ export default function AdminDashboard() {
                               </td>
                               <td className={`py-4 font-bold ${currentTheme.text}`}>{userShops.length}</td>
                               <td className={`py-4 font-bold ${currentTheme.text}`}>{userLogs.length}</td>
+                              <td className="py-4">
+                                <input 
+                                  type="number" 
+                                  min="0"
+                                  className="w-20 px-2 py-1 border border-slate-200 rounded-lg text-sm"
+                                  value={editedLimits[u.id]?.smartAiLimit ?? (u.smartAiLimit ?? 100)}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value) || 0;
+                                    setEditedLimits(prev => ({
+                                      ...prev,
+                                      [u.id]: { ...prev[u.id], smartAiLimit: val }
+                                    }));
+                                  }}
+                                />
+                              </td>
+                              <td className="py-4">
+                                <input 
+                                  type="number" 
+                                  min="0"
+                                  className="w-20 px-2 py-1 border border-slate-200 rounded-lg text-sm"
+                                  value={editedLimits[u.id]?.simpleAiLimit ?? (u.simpleAiLimit ?? 100)}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value) || 0;
+                                    setEditedLimits(prev => ({
+                                      ...prev,
+                                      [u.id]: { ...prev[u.id], simpleAiLimit: val }
+                                    }));
+                                  }}
+                                />
+                              </td>
                               <td className={`py-4 text-sm ${currentTheme.subtext}`}>
                                 {u.createdAt?.toDate ? new Date(u.createdAt.toDate()).toLocaleDateString() : 'Unknown'}
                               </td>
@@ -863,7 +984,15 @@ export default function AdminDashboard() {
                                   {u.isBlocked ? 'Blocked' : 'Active'}
                                 </span>
                               </td>
-                              <td className="py-4">
+                              <td className="py-4 flex gap-2 items-center flex-wrap">
+                                {editedLimits[u.id] && (
+                                  <button
+                                    onClick={() => saveUserLimits(u.id)}
+                                    className="px-3 py-1 rounded-lg text-xs font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+                                  >
+                                    Save
+                                  </button>
+                                )}
                                 {u.email !== 'mnjkairi1@gmail.com' && (
                                   <button
                                     onClick={() => toggleUserBlock(u.id, u.isBlocked)}
@@ -1008,8 +1137,8 @@ export default function AdminDashboard() {
 
       {/* Add/Edit Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className={`${currentTheme.card} w-full max-w-md overflow-hidden`}>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className={`${currentTheme.card} w-full max-w-md my-8`}>
             <div className="p-6 border-b border-white/20 flex justify-between items-center bg-white/50">
               <h2 className={`text-xl font-black ${currentTheme.text}`}>
                 {editingShop ? 'Edit Shop' : 'Add New Shop'}
@@ -1077,6 +1206,56 @@ export default function AdminDashboard() {
                   required
                 />
                 <p className={`text-xs mt-2 ${currentTheme.subtext}`}>This context helps AI generate smart feedback options and personalized reviews for your customers.</p>
+              </div>
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isSmartQrEnabled}
+                    onChange={(e) => setIsSmartQrEnabled(e.target.checked)}
+                    className="w-5 h-5 text-pink-600 rounded border-slate-300 focus:ring-pink-500"
+                  />
+                  <span className={`font-bold ${currentTheme.text}`}>Enable Smart QR Redirect</span>
+                </label>
+                {isSmartQrEnabled && (
+                  <div>
+                    <label className={`block text-sm font-bold ${currentTheme.text} mb-2`}>Custom Redirect URL</label>
+                    <input
+                      type="url"
+                      value={customRedirectUrl}
+                      onChange={(e) => setCustomRedirectUrl(e.target.value)}
+                      className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-pink-500/20 focus:border-pink-500 outline-none transition-all font-medium text-slate-800"
+                      placeholder="https://your-custom-link.com"
+                    />
+                  </div>
+                )}
+                <div>
+                  <label className={`block text-sm font-bold ${currentTheme.text} mb-2`}>Review Flow</label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="reviewFlow"
+                        value="smart-then-simple"
+                        checked={reviewFlow === 'smart-then-simple'}
+                        onChange={(e) => setReviewFlow(e.target.value as 'smart-then-simple' | 'simple-only')}
+                        className="w-4 h-4 text-pink-600 focus:ring-pink-500"
+                      />
+                      <span className={`text-sm ${currentTheme.text}`}>Smart then Simple</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="reviewFlow"
+                        value="simple-only"
+                        checked={reviewFlow === 'simple-only'}
+                        onChange={(e) => setReviewFlow(e.target.value as 'smart-then-simple' | 'simple-only')}
+                        className="w-4 h-4 text-pink-600 focus:ring-pink-500"
+                      />
+                      <span className={`text-sm ${currentTheme.text}`}>Simple Only</span>
+                    </label>
+                  </div>
+                </div>
               </div>
               <div className="pt-4 flex gap-3">
                 <button
