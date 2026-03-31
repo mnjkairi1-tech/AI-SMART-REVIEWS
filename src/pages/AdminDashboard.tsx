@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { LogOut, Plus, Edit2, Trash2, Copy, QrCode, BarChart3, Settings, Store, Shield, ChevronRight, Star, Palette, Check } from 'lucide-react';
+import { LogOut, Plus, Edit2, Trash2, Copy, QrCode, BarChart3, Settings, Store, Shield, ChevronRight, Star, Palette, Check, Sparkles } from 'lucide-react';
 import { auth, db, googleProvider, handleFirestoreError, OperationType } from '../firebase';
-import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { signInWithPopup, signOut, onAuthStateChanged, User, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { collection, query, where, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { QRCodeSVG } from 'qrcode.react';
 import { motion } from 'motion/react';
@@ -20,10 +20,9 @@ interface Shop {
   shopContextPrompt?: string;
   customRedirectUrl?: string;
   isSmartQrEnabled?: boolean;
-  reviewFlow?: 'smart-then-simple' | 'simple-only';
 }
 
-type Tab = 'shops' | 'analytics' | 'settings' | 'superadmin';
+type Tab = 'shops' | 'analytics' | 'settings' | 'superadmin' | 'smart-qr';
 
 const THEME_OPTIONS = [
   { id: 'mint-neumorphism', name: '🌿 Mint Soft Neumorphism', desc: 'Calm, clean, premium + cute', color: 'bg-[#e0f2eb] border border-[#becece]' },
@@ -36,6 +35,7 @@ const THEME_OPTIONS = [
   { id: 'sunset-gradient', name: '🌅 Sunset Gradient', desc: 'Warm orange, pink, yellow', color: 'bg-gradient-to-r from-orange-400 to-pink-500' },
   { id: 'ocean-breeze', name: '🌊 Ocean Breeze', desc: 'Cool blues and teals', color: 'bg-gradient-to-r from-cyan-200 to-blue-400' },
   { id: 'midnight-monolith', name: '🌑 Midnight Monolith', desc: 'Deep blacks and dark grays', color: 'bg-black border border-gray-800' },
+  { id: 'fintech-yellow', name: '💳 Fintech Yellow', desc: 'Clean white with yellow accents', color: 'bg-[#f0f4f8] border-2 border-[#ffcc00]' },
 ];
 
 const DASHBOARD_THEMES = {
@@ -148,6 +148,17 @@ const DASHBOARD_THEMES = {
     navActive: 'text-white bg-gray-900 border border-gray-800 rounded-lg',
     navInactive: 'text-gray-500 hover:text-gray-300 hover:bg-gray-900/50 rounded-lg',
     blobs: false
+  },
+  'fintech-yellow': {
+    bg: 'bg-[#eef2f6]',
+    sidebar: 'bg-white border-r border-slate-200',
+    card: 'bg-white shadow-[0_10px_40px_rgba(0,0,0,0.06)] rounded-[40px] border-none',
+    text: 'text-[#1a1a1a]',
+    subtext: 'text-[#8e9299]',
+    primaryBtn: 'bg-[#ffcc00] text-[#1a1a1a] font-bold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all rounded-full',
+    navActive: 'text-[#1a1a1a] bg-[#ffcc00] font-bold shadow-md rounded-full',
+    navInactive: 'text-[#8e9299] hover:text-[#1a1a1a] hover:bg-slate-100 rounded-full',
+    blobs: false
   }
 };
 
@@ -162,6 +173,7 @@ export default function AdminDashboard() {
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [selectedShopForTheme, setSelectedShopForTheme] = useState<Shop | null>(null);
   const [editingShop, setEditingShop] = useState<Shop | null>(null);
+  const [shopToDelete, setShopToDelete] = useState<Shop | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('shops');
   
   // Super Admin State
@@ -184,8 +196,11 @@ export default function AdminDashboard() {
   const [shopContextPrompt, setShopContextPrompt] = useState('');
   const [customRedirectUrl, setCustomRedirectUrl] = useState('');
   const [isSmartQrEnabled, setIsSmartQrEnabled] = useState(false);
-  const [reviewFlow, setReviewFlow] = useState<'smart-then-simple' | 'simple-only'>('smart-then-simple');
-  const [globalReviewFlow, setGlobalReviewFlow] = useState<'smart-then-simple' | 'simple-only'>('smart-then-simple');
+  const [globalCustomRedirectUrl, setGlobalCustomRedirectUrl] = useState('');
+  const [isGlobalSmartQrEnabled, setIsGlobalSmartQrEnabled] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [isLoginMode, setIsLoginMode] = useState(true);
 
   useEffect(() => {
     localStorage.setItem('hasVisitedAdmin', 'true');
@@ -206,8 +221,10 @@ export default function AdminDashboard() {
             await setDoc(userDocRef, newUser);
             setDbUser(newUser);
           } else {
-            setDbUser(userDocSnap.data());
-            setGlobalReviewFlow(userDocSnap.data().globalReviewFlow || 'smart-then-simple');
+            const data = userDocSnap.data();
+            setDbUser(data);
+            setGlobalCustomRedirectUrl(data.globalCustomRedirectUrl || '');
+            setIsGlobalSmartQrEnabled(!!data.isGlobalSmartQrEnabled);
           }
         } catch (error) {
           console.error("Error ensuring user doc:", error);
@@ -342,6 +359,25 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginEmail || !loginPassword) {
+      toast.error('Please enter email and password');
+      return;
+    }
+    try {
+      if (isLoginMode) {
+        await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
+        toast.success('Logged in successfully!');
+      } else {
+        await createUserWithEmailAndPassword(auth, loginEmail, loginPassword);
+        toast.success('Account created successfully!');
+      }
+    } catch (error: any) {
+      toast.error(error.message || (isLoginMode ? 'Failed to log in' : 'Failed to sign up'));
+    }
+  };
+
   const handleLogout = async () => {
     await signOut(auth);
   };
@@ -363,7 +399,6 @@ export default function AdminDashboard() {
           shopContextPrompt,
           customRedirectUrl,
           isSmartQrEnabled,
-          reviewFlow,
         });
         toast.success('Shop updated successfully');
       } else {
@@ -375,7 +410,6 @@ export default function AdminDashboard() {
           shopContextPrompt,
           customRedirectUrl,
           isSmartQrEnabled,
-          reviewFlow,
           ownerId: user.uid,
           createdAt: serverTimestamp(),
         });
@@ -391,15 +425,21 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this shop?')) return;
+  const handleDelete = (shop: Shop) => {
+    setShopToDelete(shop);
+  };
+
+  const confirmDelete = async () => {
+    if (!shopToDelete) return;
     try {
-      await deleteDoc(doc(db, 'shops', id));
+      await deleteDoc(doc(db, 'shops', shopToDelete.id));
       toast.success('Shop deleted');
       fetchShops(user!.uid);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, 'shops');
       toast.error('Failed to delete shop');
+    } finally {
+      setShopToDelete(null);
     }
   };
 
@@ -411,7 +451,6 @@ export default function AdminDashboard() {
     setShopContextPrompt('');
     setCustomRedirectUrl('');
     setIsSmartQrEnabled(false);
-    setReviewFlow('smart-then-simple');
   };
 
   const openEditModal = (shop: Shop) => {
@@ -423,7 +462,6 @@ export default function AdminDashboard() {
     setShopContextPrompt(shop.shopContextPrompt || '');
     setCustomRedirectUrl(shop.customRedirectUrl || '');
     setIsSmartQrEnabled(shop.isSmartQrEnabled || false);
-    setReviewFlow(shop.reviewFlow || 'smart-then-simple');
     setShowAddModal(true);
   };
 
@@ -548,6 +586,105 @@ export default function AdminDashboard() {
             </svg>
             Continue with Google
           </button>
+
+          <div className="relative py-2">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white/40 backdrop-blur-xl text-slate-500 font-medium">Or continue with email</span>
+            </div>
+          </div>
+
+          <div className="relative w-full [perspective:1000px] h-[260px]">
+            <motion.div
+              className="w-full h-full relative [transform-style:preserve-3d]"
+              animate={{ rotateY: isLoginMode ? 0 : 180 }}
+              transition={{ duration: 0.6, type: "spring", stiffness: 260, damping: 20 }}
+            >
+              {/* Front: Sign In */}
+              <div className={`absolute inset-0 w-full h-full [backface-visibility:hidden] ${!isLoginMode ? 'pointer-events-none' : ''}`}>
+                <form onSubmit={handleEmailAuth} className="space-y-4">
+                  <div>
+                    <input
+                      type="email"
+                      placeholder="Email address"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-white/50 bg-white/50 focus:outline-none focus:ring-2 focus:ring-pink-400 placeholder-slate-400 text-slate-800"
+                      required
+                      tabIndex={isLoginMode ? 0 : -1}
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="password"
+                      placeholder="Password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-white/50 bg-white/50 focus:outline-none focus:ring-2 focus:ring-pink-400 placeholder-slate-400 text-slate-800"
+                      required
+                      tabIndex={isLoginMode ? 0 : -1}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full py-3 px-6 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold shadow-sm hover:shadow-md transition-all"
+                    tabIndex={isLoginMode ? 0 : -1}
+                  >
+                    Sign In
+                  </button>
+                  <div className="text-center text-sm text-slate-600 mt-4">
+                    New to the app?{' '}
+                    <button type="button" onClick={() => setIsLoginMode(false)} className="text-pink-600 font-bold hover:underline" tabIndex={isLoginMode ? 0 : -1}>
+                      Register
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* Back: Sign Up */}
+              <div className={`absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] ${isLoginMode ? 'pointer-events-none' : ''}`}>
+                <form onSubmit={handleEmailAuth} className="space-y-4">
+                  <div>
+                    <input
+                      type="email"
+                      placeholder="Email address"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-white/50 bg-white/50 focus:outline-none focus:ring-2 focus:ring-pink-400 placeholder-slate-400 text-slate-800"
+                      required
+                      tabIndex={!isLoginMode ? 0 : -1}
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="password"
+                      placeholder="Choose a password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-white/50 bg-white/50 focus:outline-none focus:ring-2 focus:ring-pink-400 placeholder-slate-400 text-slate-800"
+                      required
+                      tabIndex={!isLoginMode ? 0 : -1}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full py-3 px-6 bg-pink-500 hover:bg-pink-600 text-white rounded-xl font-bold shadow-sm hover:shadow-md transition-all"
+                    tabIndex={!isLoginMode ? 0 : -1}
+                  >
+                    Create Account
+                  </button>
+                  <div className="text-center text-sm text-slate-600 mt-4">
+                    Already have an account?{' '}
+                    <button type="button" onClick={() => setIsLoginMode(true)} className="text-pink-600 font-bold hover:underline" tabIndex={!isLoginMode ? 0 : -1}>
+                      Sign In
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          </div>
         </div>
       </div>
     );
@@ -676,7 +813,7 @@ export default function AdminDashboard() {
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleDelete(shop.id)}
+                            onClick={() => handleDelete(shop)}
                             className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors bg-white/50 shadow-sm"
                             title="Delete"
                           >
@@ -685,36 +822,19 @@ export default function AdminDashboard() {
                           <button
                             onClick={() => {
                               navigator.clipboard.writeText(shopUrl);
-                              toast.success('Smart AI QR link copied!');
+                              toast.success('Public link copied!');
                             }}
-                            className="p-2.5 text-slate-400 hover:text-pink-600 hover:bg-pink-50 rounded-xl transition-colors bg-white/50 shadow-sm"
-                            title="Copy Smart AI Link"
+                            className="p-2.5 text-slate-400 hover:text-pink-600 hover:bg-pink-50 rounded-xl transition-colors bg-white/50 shadow-sm flex items-center gap-2"
+                            title="Copy Public Link"
                           >
-                            <Copy className="w-4 h-4" /> Smart AI
-                          </button>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(simpleShopUrl);
-                              toast.success('Simple QR link copied!');
-                            }}
-                            className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors bg-white/50 shadow-sm"
-                            title="Copy Simple Link"
-                          >
-                            <Copy className="w-4 h-4" /> Simple
+                            <Copy className="w-4 h-4" /> Public Link
                           </button>
                           <Link
                             to={`/shop/${shop.id}?d=${encodedData}`}
                             target="_blank"
                             className="text-sm text-pink-500 hover:text-pink-600 hover:underline font-bold flex items-center gap-1 ml-auto"
                           >
-                            View Smart Page <ChevronRight className="w-4 h-4" />
-                          </Link>
-                          <Link
-                            to={`/shop/${shop.id}?mode=simple`}
-                            target="_blank"
-                            className="text-sm text-blue-500 hover:text-blue-600 hover:underline font-bold flex items-center gap-1"
-                          >
-                            View Simple Page <ChevronRight className="w-4 h-4" />
+                            View Page <ChevronRight className="w-4 h-4" />
                           </Link>
                         </div>
                       </div>
@@ -772,6 +892,45 @@ export default function AdminDashboard() {
             </div>
           </>
         );
+      case 'smart-qr':
+        return (
+          <>
+            <div className="mb-8">
+              <h1 className={`text-3xl font-black ${currentTheme.text} tracking-tight`}>Smart AI</h1>
+              <p className={`${currentTheme.subtext} font-medium mt-1`}>Manage your smart features and redirects.</p>
+            </div>
+            
+            <div className="max-w-2xl space-y-6">
+              <div className={`${currentTheme.card} p-8`}>
+                <h2 className={`text-xl font-bold ${currentTheme.text} mb-6`}>Global Smart QR</h2>
+                <div className="space-y-4">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isGlobalSmartQrEnabled}
+                      onChange={(e) => {
+                        setIsGlobalSmartQrEnabled(e.target.checked);
+                        updateDoc(doc(db, 'users', user!.uid), { isGlobalSmartQrEnabled: e.target.checked });
+                      }}
+                      className="w-5 h-5 text-pink-600 rounded focus:ring-pink-500"
+                    />
+                    <span className={`font-bold ${currentTheme.text}`}>Enable Global Smart QR Redirect</span>
+                  </label>
+                  {isGlobalSmartQrEnabled && (
+                    <input
+                      type="url"
+                      value={globalCustomRedirectUrl}
+                      onChange={(e) => setGlobalCustomRedirectUrl(e.target.value)}
+                      onBlur={() => updateDoc(doc(db, 'users', user!.uid), { globalCustomRedirectUrl })}
+                      className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-pink-500/20 focus:border-pink-500 outline-none transition-all font-medium text-slate-800"
+                      placeholder="https://your-global-link.com"
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        );
       case 'settings':
         return (
           <>
@@ -800,34 +959,6 @@ export default function AdminDashboard() {
                       <p className={`text-xs ${currentTheme.subtext} font-medium`}>{option.desc}</p>
                     </button>
                   ))}
-                </div>
-              </div>
-
-              <div className={`${currentTheme.card} p-8`}>
-                <h2 className={`text-xl font-bold ${currentTheme.text} mb-6`}>Global Review Flow</h2>
-                <div className="flex gap-4">
-                  <button
-                    onClick={async () => {
-                      setGlobalReviewFlow('smart-then-simple');
-                      await updateDoc(doc(db, 'users', user!.uid), { globalReviewFlow: 'smart-then-simple' });
-                      toast.success('Global flow updated!');
-                    }}
-                    className={`flex-1 p-4 rounded-2xl border-2 transition-all text-left ${globalReviewFlow === 'smart-then-simple' ? 'border-pink-500 bg-pink-50/50' : 'border-transparent bg-white/50 hover:bg-white/80'}`}
-                  >
-                    <h3 className={`font-bold ${currentTheme.text}`}>Smart then Simple</h3>
-                    <p className={`text-xs mt-1 ${currentTheme.subtext}`}>Default AI review flow.</p>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setGlobalReviewFlow('simple-only');
-                      await updateDoc(doc(db, 'users', user!.uid), { globalReviewFlow: 'simple-only' });
-                      toast.success('Global flow updated!');
-                    }}
-                    className={`flex-1 p-4 rounded-2xl border-2 transition-all text-left ${globalReviewFlow === 'simple-only' ? 'border-pink-500 bg-pink-50/50' : 'border-transparent bg-white/50 hover:bg-white/80'}`}
-                  >
-                    <h3 className={`font-bold ${currentTheme.text}`}>Simple Only</h3>
-                    <p className={`text-xs mt-1 ${currentTheme.subtext}`}>Direct simple review.</p>
-                  </button>
                 </div>
               </div>
 
@@ -1060,6 +1191,13 @@ export default function AdminDashboard() {
             Analytics
           </button>
           <button 
+            onClick={() => setActiveTab('smart-qr')}
+            className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl font-bold transition-all ${activeTab === 'smart-qr' ? currentTheme.navActive : currentTheme.navInactive}`}
+          >
+            <Sparkles className="w-5 h-5" />
+            Smart AI
+          </button>
+          <button 
             onClick={() => setActiveTab('settings')}
             className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl font-bold transition-all ${activeTab === 'settings' ? currentTheme.navActive : currentTheme.navInactive}`}
           >
@@ -1113,6 +1251,13 @@ export default function AdminDashboard() {
         >
           <BarChart3 className="w-6 h-6" />
           <span className="text-[10px] font-bold">Analytics</span>
+        </button>
+        <button 
+          onClick={() => setActiveTab('smart-qr')}
+          className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${activeTab === 'smart-qr' ? currentTheme.navActive : currentTheme.navInactive}`}
+        >
+          <Sparkles className="w-6 h-6" />
+          <span className="text-[10px] font-bold">Smart AI</span>
         </button>
         <button 
           onClick={() => setActiveTab('settings')}
@@ -1229,33 +1374,6 @@ export default function AdminDashboard() {
                     />
                   </div>
                 )}
-                <div>
-                  <label className={`block text-sm font-bold ${currentTheme.text} mb-2`}>Review Flow</label>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="reviewFlow"
-                        value="smart-then-simple"
-                        checked={reviewFlow === 'smart-then-simple'}
-                        onChange={(e) => setReviewFlow(e.target.value as 'smart-then-simple' | 'simple-only')}
-                        className="w-4 h-4 text-pink-600 focus:ring-pink-500"
-                      />
-                      <span className={`text-sm ${currentTheme.text}`}>Smart then Simple</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="reviewFlow"
-                        value="simple-only"
-                        checked={reviewFlow === 'simple-only'}
-                        onChange={(e) => setReviewFlow(e.target.value as 'smart-then-simple' | 'simple-only')}
-                        className="w-4 h-4 text-pink-600 focus:ring-pink-500"
-                      />
-                      <span className={`text-sm ${currentTheme.text}`}>Simple Only</span>
-                    </label>
-                  </div>
-                </div>
               </div>
               <div className="pt-4 flex gap-3">
                 <button
@@ -1320,6 +1438,36 @@ export default function AdminDashboard() {
                     </button>
                   );
                 })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Delete Confirmation Modal */}
+      {shopToDelete && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className={`${currentTheme.card} w-full max-w-sm overflow-hidden`}>
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-8 h-8" />
+              </div>
+              <h3 className={`text-xl font-black ${currentTheme.text} mb-2`}>Delete Shop?</h3>
+              <p className={`${currentTheme.subtext} text-sm mb-6`}>
+                Are you sure you want to delete <strong>{shopToDelete.name}</strong>? This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShopToDelete(null)}
+                  className={`flex-1 py-3 rounded-xl font-bold transition-colors ${currentTheme.navInactive} bg-slate-100 hover:bg-slate-200`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="flex-1 py-3 rounded-xl font-bold transition-colors bg-red-500 hover:bg-red-600 text-white shadow-md"
+                >
+                  Delete
+                </button>
               </div>
             </div>
           </div>

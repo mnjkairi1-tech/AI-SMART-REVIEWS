@@ -173,6 +173,22 @@ const THEMES = {
     iconColor: 'text-white',
     blobs: false
   },
+  'fintech-yellow': {
+    bg: 'bg-[#eef2f6]',
+    card: 'bg-white shadow-[0_20px_50px_rgba(0,0,0,0.05)] rounded-[40px] border-none',
+    header: 'bg-transparent p-8 pb-4 text-left relative overflow-hidden',
+    headerText: 'text-[#1a1a1a] font-black tracking-tighter text-5xl',
+    headerSubtext: 'text-[#8e9299] font-medium text-sm mt-2',
+    text: 'text-[#1a1a1a] font-bold',
+    subtext: 'text-[#8e9299] font-medium',
+    primaryBtn: 'bg-[#ffcc00] text-[#1a1a1a] font-bold shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all rounded-full py-3.5',
+    secondaryBtn: 'bg-white text-[#8e9299] font-bold shadow-sm hover:shadow-md transition-all rounded-full py-3.5 border border-slate-100',
+    secondaryBtnActive: 'bg-[#ffcc00] text-[#1a1a1a] font-bold shadow-sm rounded-full py-3.5',
+    accent: 'text-[#ffcc00]',
+    iconBg: 'bg-[#ffcc00] shadow-sm rounded-full',
+    iconColor: 'text-[#1a1a1a]',
+    blobs: false
+  },
   'default': {
     bg: 'bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100',
     card: 'bg-white/60 backdrop-blur-2xl border border-white/50 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] rounded-[2.5rem]',
@@ -260,7 +276,7 @@ export default function ShopReview() {
         if (docSnap.exists()) {
           const shopData = { id: docSnap.id, ...docSnap.data() } as Shop;
           
-          // Redirect if smart QR is enabled
+          // Redirect if smart QR is enabled (Shop-specific)
           if (shopData.isSmartQrEnabled && shopData.customRedirectUrl && shopData.customRedirectUrl.trim() !== '') {
             let redirectUrl = shopData.customRedirectUrl.trim();
             if (!redirectUrl.startsWith('http://') && !redirectUrl.startsWith('https://')) {
@@ -273,13 +289,25 @@ export default function ShopReview() {
 
           setShop(shopData);
           
-          // Fetch owner's global review flow setting
+          // Fetch owner's global settings
           if (shopData.ownerId) {
             try {
               const userRef = doc(db, 'users', shopData.ownerId);
               const userSnap = await getDoc(userRef);
               if (userSnap.exists()) {
                 const userData = userSnap.data();
+                
+                // Redirect if global smart QR is enabled
+                if (userData.isGlobalSmartQrEnabled && userData.globalCustomRedirectUrl && userData.globalCustomRedirectUrl.trim() !== '') {
+                  let redirectUrl = userData.globalCustomRedirectUrl.trim();
+                  if (!redirectUrl.startsWith('http://') && !redirectUrl.startsWith('https://')) {
+                    redirectUrl = 'https://' + redirectUrl;
+                  }
+                  document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;font-weight:bold;color:#333;background:#f8fafc;">Redirecting...</div>';
+                  window.location.href = redirectUrl;
+                  return;
+                }
+                
                 setShop(prev => prev ? { ...prev, globalReviewFlow: userData.globalReviewFlow } : prev);
               }
             } catch (err) {
@@ -634,16 +662,35 @@ export default function ShopReview() {
             <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
           )}
           <div className="relative z-10">
-            <motion.div 
-              initial={{ rotate: -10, scale: 0.8 }}
-              animate={{ rotate: 0, scale: 1 }}
-              transition={{ type: "spring", bounce: 0.5, delay: 0.2 }}
-              className={`w-16 h-16 ${currentTheme.iconBg} rounded-2xl flex items-center justify-center mx-auto mb-3`}
-            >
-              <Store className={`w-8 h-8 ${currentTheme.iconColor}`} />
-            </motion.div>
-            <h1 className={`text-2xl font-black ${currentTheme.headerText} mb-1 tracking-tight drop-shadow-sm`}>{displayShop.name}</h1>
-            <p className={`text-xs font-bold uppercase tracking-wider ${currentTheme.headerSubtext}`}>{displayShop.type}</p>
+            {currentTheme.header.includes('text-left') ? (
+              <div className="flex items-center gap-4">
+                <motion.div 
+                  initial={{ rotate: -10, scale: 0.8 }}
+                  animate={{ rotate: 0, scale: 1 }}
+                  transition={{ type: "spring", bounce: 0.5, delay: 0.2 }}
+                  className={`w-16 h-16 ${currentTheme.iconBg} rounded-2xl flex items-center justify-center shrink-0`}
+                >
+                  <Store className={`w-8 h-8 ${currentTheme.iconColor}`} />
+                </motion.div>
+                <div>
+                  <h1 className={`text-2xl font-black ${currentTheme.headerText} mb-1 tracking-tight drop-shadow-sm`}>{displayShop.name}</h1>
+                  <p className={`text-xs font-bold uppercase tracking-wider ${currentTheme.headerSubtext}`}>{displayShop.type}</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <motion.div 
+                  initial={{ rotate: -10, scale: 0.8 }}
+                  animate={{ rotate: 0, scale: 1 }}
+                  transition={{ type: "spring", bounce: 0.5, delay: 0.2 }}
+                  className={`w-16 h-16 ${currentTheme.iconBg} rounded-2xl flex items-center justify-center mx-auto mb-3`}
+                >
+                  <Store className={`w-8 h-8 ${currentTheme.iconColor}`} />
+                </motion.div>
+                <h1 className={`text-2xl font-black ${currentTheme.headerText} mb-1 tracking-tight drop-shadow-sm`}>{displayShop.name}</h1>
+                <p className={`text-xs font-bold uppercase tracking-wider ${currentTheme.headerSubtext}`}>{displayShop.type}</p>
+              </>
+            )}
           </div>
         </div>
 
