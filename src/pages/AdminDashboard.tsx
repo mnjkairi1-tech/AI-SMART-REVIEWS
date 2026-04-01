@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { LogOut, Plus, Edit2, Trash2, Copy, QrCode, BarChart3, Settings, Store, Shield, ChevronRight, Star, Palette, Check, Sparkles } from 'lucide-react';
 import { auth, db, googleProvider, handleFirestoreError, OperationType } from '../firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
-import { collection, query, where, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, setDoc, deleteField } from 'firebase/firestore';
 import { QRCodeSVG } from 'qrcode.react';
 import { motion } from 'motion/react';
 
@@ -12,7 +12,6 @@ interface Shop {
   id: string;
   name: string;
   type: string;
-  keywords: string[];
   reviewLink: string;
   ownerId: string;
   createdAt: any;
@@ -21,6 +20,7 @@ interface Shop {
   customRedirectUrl?: string;
   isSmartQrEnabled?: boolean;
   isPublic?: boolean;
+  options?: { liked: string[], disliked: string[] };
 }
 
 type Tab = 'shops' | 'analytics' | 'settings' | 'superadmin' | 'smart-qr';
@@ -193,7 +193,6 @@ export default function AdminDashboard() {
   // Form state
   const [name, setName] = useState('');
   const [type, setType] = useState('');
-  const [keywords, setKeywords] = useState('');
   const [reviewLink, setReviewLink] = useState('');
   const [shopContextPrompt, setShopContextPrompt] = useState('');
   const [customRedirectUrl, setCustomRedirectUrl] = useState('');
@@ -418,7 +417,6 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (!user) return;
     setIsSaving(true);
-    const keywordArray = keywords.split(',').map(k => k.trim()).filter(k => k);
 
     try {
       if (editingShop) {
@@ -426,19 +424,20 @@ export default function AdminDashboard() {
         await updateDoc(shopRef, {
           name,
           type,
-          keywords: keywordArray,
           reviewLink,
           shopContextPrompt,
           customRedirectUrl,
           isSmartQrEnabled,
           isPublic: true,
+          keywords: deleteField(),
+          // Clear cached options if context changes significantly
+          // cachedOptions: deleteField() // Optional: could clear cache if prompt changes
         });
         toast.success('Shop updated successfully');
       } else {
         await addDoc(collection(db, 'shops'), {
           name,
           type,
-          keywords: keywordArray,
           reviewLink,
           shopContextPrompt,
           customRedirectUrl,
@@ -482,7 +481,6 @@ export default function AdminDashboard() {
   const resetForm = () => {
     setName('');
     setType('');
-    setKeywords('');
     setReviewLink('');
     setShopContextPrompt('');
     setCustomRedirectUrl('');
@@ -494,7 +492,6 @@ export default function AdminDashboard() {
     setEditingShop(shop);
     setName(shop.name);
     setType(shop.type);
-    setKeywords(shop.keywords.join(', '));
     setReviewLink(shop.reviewLink);
     setShopContextPrompt(shop.shopContextPrompt || '');
     setCustomRedirectUrl(shop.customRedirectUrl || '');
@@ -604,8 +601,8 @@ export default function AdminDashboard() {
         <div className="absolute top-[20%] right-[-10%] w-96 h-96 bg-purple-300/30 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
         <div className="absolute bottom-[-20%] left-[20%] w-96 h-96 bg-blue-300/30 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-4000"></div>
 
-        <div className="max-w-md w-full bg-white/40 backdrop-blur-xl border border-white/50 p-10 rounded-[2rem] shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] text-center space-y-8 relative z-10">
-          <div className="w-20 h-20 bg-gradient-to-tr from-pink-400 to-purple-500 rounded-3xl flex items-center justify-center mx-auto shadow-lg shadow-pink-200 transform -rotate-6">
+        <div className="max-w-md w-full bg-white/40 backdrop-blur-xl border border-white/50 p-10 rounded-[2rem] shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] text-right space-y-8 relative z-10">
+          <div className="w-20 h-20 bg-gradient-to-tr from-pink-400 to-purple-500 rounded-3xl flex items-center justify-center ml-auto shadow-lg shadow-pink-200 transform -rotate-6">
             <QrCode className="w-10 h-10 text-white" />
           </div>
           <div>
@@ -731,8 +728,8 @@ export default function AdminDashboard() {
   if (user && !user.emailVerified) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden">
-        <div className="max-w-md w-full bg-white/40 backdrop-blur-xl border border-white/50 p-10 rounded-[2rem] shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] text-center space-y-8 relative z-10">
-          <div className="w-20 h-20 bg-gradient-to-tr from-yellow-400 to-orange-500 rounded-3xl flex items-center justify-center mx-auto shadow-lg shadow-orange-200 transform -rotate-6">
+        <div className="max-w-md w-full bg-white/40 backdrop-blur-xl border border-white/50 p-10 rounded-[2rem] shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] text-right space-y-8 relative z-10">
+          <div className="w-20 h-20 bg-gradient-to-tr from-yellow-400 to-orange-500 rounded-3xl flex items-center justify-center ml-auto shadow-lg shadow-orange-200 transform -rotate-6">
             <Shield className="w-10 h-10 text-white" />
           </div>
           <div>
@@ -840,13 +837,13 @@ export default function AdminDashboard() {
                   const shopData = {
                     n: shop.name,
                     t: shop.type,
-                    k: shop.keywords,
                     l: shop.reviewLink,
                     th: shop.theme || 'mint-neumorphism'
                   };
                   const encodedData = btoa(encodeURIComponent(JSON.stringify(shopData)));
-                  const shopUrl = `/shop/${shop.id}?d=${encodedData}`;
-                  const simpleShopUrl = `/shop/${shop.id}?mode=simple`;
+                  const baseUrl = window.location.origin;
+                  const shopUrl = `${baseUrl}/shop/${shop.id}?d=${encodedData}`;
+                  const simpleShopUrl = `${baseUrl}/shop/${shop.id}?mode=simple`;
                   
                   return (
                     <div key={shop.id} className="flex flex-col">
@@ -867,17 +864,6 @@ export default function AdminDashboard() {
                             <Palette className="w-4 h-4" />
                             <span className="hidden sm:inline">Theme</span>
                           </button>
-
-                          <div>
-                            <p className={`text-xs ${currentTheme.subtext} font-bold uppercase tracking-wider mb-2`}>Keywords</p>
-                            <div className="flex flex-wrap gap-2">
-                              {shop.keywords.map((kw, i) => (
-                                <span key={i} className="px-3 py-1 bg-white/50 text-slate-600 text-xs font-medium rounded-lg border border-slate-100 shadow-sm">
-                                  {kw}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
 
                           <div className="flex items-center gap-2 pt-4 flex-wrap">
                             <button
@@ -1349,7 +1335,7 @@ export default function AdminDashboard() {
 
       {/* Mobile Header */}
       <header className={`md:hidden ${currentTheme.sidebar} p-4 sticky top-0 z-30 transition-colors duration-500`}>
-        <h2 className={`text-xl font-black ${currentTheme.text} flex items-center justify-center gap-2 tracking-tight`}>
+        <h2 className={`text-xl font-black ${currentTheme.text} flex items-center justify-end gap-2 tracking-tight`}>
           <div className="w-8 h-8 bg-gradient-to-tr from-pink-400 to-purple-500 rounded-lg flex items-center justify-center shadow-sm transform -rotate-6">
             <QrCode className="w-4 h-4 text-white" />
           </div>
@@ -1447,35 +1433,26 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className={`block text-sm font-bold ${currentTheme.text} mb-2`}>Keywords (comma separated)</label>
-                <input
-                  type="text"
-                  required
-                  value={keywords}
-                  onChange={(e) => setKeywords(e.target.value)}
-                  className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-pink-500/20 focus:border-pink-500 outline-none transition-all font-medium text-slate-800"
-                  placeholder="e.g. staff, cleanliness, haircut"
-                />
-              </div>
-              <div>
-                <label className={`block text-sm font-bold ${currentTheme.text} mb-2`}>Google Review Link</label>
-                <input
-                  type="url"
+                <label className={`block text-sm font-bold ${currentTheme.text} mb-2`}>Google Review Link (Up to 2000 chars)</label>
+                <textarea
                   required
                   value={reviewLink}
                   onChange={(e) => setReviewLink(e.target.value)}
+                  maxLength={2000}
                   className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-pink-500/20 focus:border-pink-500 outline-none transition-all font-medium text-slate-800"
                   placeholder="https://g.page/r/..."
+                  rows={2}
                 />
               </div>
               <div>
-                <label className={`block text-sm font-bold ${currentTheme.text} mb-2`}>Shop Context / AI Instructions <span className="text-red-500">*</span></label>
+                <label className={`block text-sm font-bold ${currentTheme.text} mb-2`}>Shop Context / AI Instructions (Up to 10,000 chars) <span className="text-red-500">*</span></label>
                 <textarea
                   value={shopContextPrompt}
                   onChange={(e) => setShopContextPrompt(e.target.value)}
+                  maxLength={10000}
                   className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-pink-500/20 focus:border-pink-500 outline-none transition-all font-medium text-slate-800"
                   placeholder="E.g., We are a family-owned Italian restaurant. We have 5 staff members. Our specialty is wood-fired pizza..."
-                  rows={4}
+                  rows={6}
                   required
                 />
                 <p className={`text-xs mt-2 ${currentTheme.subtext}`}>This context helps AI generate smart feedback options and personalized reviews for your customers.</p>

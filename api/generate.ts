@@ -8,7 +8,7 @@ export default async function handler(req: any, res: any) {
 
   try {
     // Frontend se data receive kar rahe hain
-    const { shopName, shopType, keywords, rating, categories, shopContextPrompt } = req.body;
+    const { shopName, shopType, rating, categories, shopContextPrompt } = req.body;
 
     // Vercel ke environment variables se API key uthayenge (Backend me safe hai)
     const apiKey = process.env.GEMINI_API_KEY;
@@ -35,7 +35,6 @@ export default async function handler(req: any, res: any) {
       You are an AI assistant helping a customer write a Google review for a business.
       Business Name: ${shopName}
       Business Type: ${shopType}
-      Business Keywords: ${keywords.join(", ")}
       Customer Rating: ${rating} out of 5 stars
       Selected Categories: ${categories && categories.length > 0 ? categories.join(", ") : "General experience"}
       Business Context / Owner Instructions: ${shopContextPrompt || 'No specific instructions provided.'}

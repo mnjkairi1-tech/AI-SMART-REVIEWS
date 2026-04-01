@@ -31,7 +31,7 @@ function getAIClient() {
   return aiClient;
 }
 
-export async function generateReviews(shopName: string, shopType: string, keywords: string[], rating: number, categories: string[], shopContextPrompt?: string) {
+export async function generateReviews(shopName: string, shopType: string, rating: number, categories: string[], shopContextPrompt?: string) {
   try {
     // Ab hum direct Gemini ko call nahi kar rahe, balki apne Vercel backend ko call kar rahe hain
     const response = await fetch('/api/generate', {
@@ -42,7 +42,6 @@ export async function generateReviews(shopName: string, shopType: string, keywor
       body: JSON.stringify({
         shopName,
         shopType,
-        keywords,
         rating,
         categories,
         shopContextPrompt

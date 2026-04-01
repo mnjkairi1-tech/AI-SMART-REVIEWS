@@ -17,7 +17,6 @@ interface Shop {
   id: string;
   name: string;
   type: string;
-  keywords: string[];
   reviewLink: string;
   ownerId?: string;
   theme?: string;
@@ -274,7 +273,11 @@ export default function ShopReview() {
 
       try {
         const docRef = doc(db, 'shops', shopId);
-        const docSnap = await getDoc(docRef);
+        const docSnap = await getDoc(docRef).catch(err => {
+          console.error("Error fetching shop doc:", err);
+          throw err;
+        });
+        
         if (docSnap.exists()) {
           const shopData = { id: docSnap.id, ...docSnap.data() } as Shop;
           
@@ -425,7 +428,6 @@ export default function ShopReview() {
         const reviews = await generateReviews(
           shop.name,
           shop.type,
-          shop.keywords,
           rating,
           combinedCategories,
           shop.shopContextPrompt
@@ -941,7 +943,7 @@ export default function ShopReview() {
         </div>
       </motion.div>
       
-      <div className={`mt-8 text-center ${currentTheme.subtext} text-xs font-bold tracking-widest uppercase relative z-10`}>
+      <div className={`mt-8 text-right ${currentTheme.subtext} text-xs font-bold tracking-widest uppercase relative z-10`}>
         Powered by SMART QR
       </div>
     </div>

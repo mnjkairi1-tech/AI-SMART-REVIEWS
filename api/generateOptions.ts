@@ -20,8 +20,8 @@ export default async function handler(req: any, res: any) {
       Business Name: ${shopName}
       Business Context / Owner Instructions: ${shopContextPrompt || 'A standard business.'}
 
-      Generate exactly 10 short, punchy "What you liked" options (e.g., "Friendly Staff", "Clean Environment") 
-      and exactly 10 short, punchy "What you didn't like" options (e.g., "Slow Service", "Too Noisy").
+      Generate exactly 15 short, punchy "What you liked" options (e.g., "Friendly Staff", "Clean Environment") 
+      and exactly 15 short, punchy "What you didn't like" options (e.g., "Slow Service", "Too Noisy").
       Keep each option under 3-4 words. Make them highly relevant to the business context provided.
     `;
 
@@ -36,12 +36,12 @@ export default async function handler(req: any, res: any) {
             liked: { 
               type: Type.ARRAY, 
               items: { type: Type.STRING },
-              description: "10 positive feedback options"
+              description: "15 positive feedback options"
             },
             disliked: { 
               type: Type.ARRAY, 
               items: { type: Type.STRING },
-              description: "10 negative feedback options"
+              description: "15 negative feedback options"
             }
           },
           required: ["liked", "disliked"]

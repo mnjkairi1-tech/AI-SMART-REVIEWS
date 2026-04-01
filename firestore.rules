@@ -128,12 +128,14 @@ service cloud.firestore {
     // ===============================================================
 
     function isValidOwnerStats(data) {
-      return hasOnlyAllowedFields(['smartAiLimit', 'simpleAiLimit', 'smartAiUsage', 'simpleAiUsage', 'lastUsageDate']) &&
+      return hasOnlyAllowedFields(['smartAiLimit', 'simpleAiLimit', 'smartAiUsage', 'simpleAiUsage', 'lastUsageDate', 'lastUsageMonth', 'limitType']) &&
              data.smartAiLimit is number && data.smartAiLimit >= 0 &&
              data.simpleAiLimit is number && data.simpleAiLimit >= 0 &&
              data.smartAiUsage is number && data.smartAiUsage >= 0 &&
              data.simpleAiUsage is number && data.simpleAiUsage >= 0 &&
-             data.lastUsageDate is string;
+             data.lastUsageDate is string &&
+             (!('lastUsageMonth' in data) || data.lastUsageMonth is string) &&
+             (!('limitType' in data) || data.limitType in ['daily', 'monthly']);
     }
 
     match /ownerStats/{ownerId} {
@@ -146,19 +148,24 @@ service cloud.firestore {
         request.resource.data.simpleAiUsage <= 1
       );
       allow update: if isAdmin() || (
-        request.resource.data.smartAiLimit == resource.data.smartAiLimit &&
-        request.resource.data.simpleAiLimit == resource.data.simpleAiLimit &&
         isValidOwnerStats(request.resource.data) &&
         (
-          (request.resource.data.lastUsageDate != resource.data.lastUsageDate &&
-           request.resource.data.smartAiUsage <= 1 &&
-           request.resource.data.simpleAiUsage <= 1) ||
-          (request.resource.data.lastUsageDate == resource.data.lastUsageDate &&
-           request.resource.data.smartAiUsage <= resource.data.smartAiUsage + 1 &&
-           request.resource.data.simpleAiUsage <= resource.data.simpleAiUsage + 1)
+          // Owner can update their own stats
+          isOwner(ownerId) ||
+          // Public users can increment usage if they don't change limits
+          (
+            request.resource.data.smartAiLimit == resource.data.smartAiLimit &&
+            request.resource.data.simpleAiLimit == resource.data.simpleAiLimit &&
+            (!('limitType' in request.resource.data) || request.resource.data.limitType == resource.data.get('limitType', 'daily'))
+          )
         )
       );
       allow delete: if isAdmin();
+    }
+
+    match /platformSettings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     match /publicUserSettings/{userId} {
