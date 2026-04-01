@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { LogOut, Plus, Edit2, Trash2, Copy, QrCode, BarChart3, Settings, Store, Shield, ChevronRight, Star, Palette, Check, Sparkles } from 'lucide-react';
 import { auth, db, googleProvider, handleFirestoreError, OperationType } from '../firebase';
-import { signInWithPopup, signOut, onAuthStateChanged, User, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithPopup, signOut, onAuthStateChanged, User, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { collection, query, where, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { QRCodeSVG } from 'qrcode.react';
 import { motion } from 'motion/react';
@@ -20,6 +20,7 @@ interface Shop {
   shopContextPrompt?: string;
   customRedirectUrl?: string;
   isSmartQrEnabled?: boolean;
+  isPublic?: boolean;
 }
 
 type Tab = 'shops' | 'analytics' | 'settings' | 'superadmin' | 'smart-qr';
@@ -182,7 +183,8 @@ export default function AdminDashboard() {
   const [allLogs, setAllLogs] = useState<any[]>([]);
   const [superAdminLoading, setSuperAdminLoading] = useState(false);
   const [superAdminFetched, setSuperAdminFetched] = useState(false);
-  const [editedLimits, setEditedLimits] = useState<Record<string, { smartAiLimit?: number, simpleAiLimit?: number }>>({});
+  const [globalLimitType, setGlobalLimitType] = useState<'daily' | 'monthly'>('daily');
+  const [editedLimits, setEditedLimits] = useState<Record<string, { smartAiLimit?: number, simpleAiLimit?: number, limitType?: 'daily' | 'monthly' }>>({});
   
   const [dashboardTheme, setDashboardTheme] = useState(() => {
     return localStorage.getItem('dashboardTheme') || 'mint-neumorphism';
@@ -196,6 +198,8 @@ export default function AdminDashboard() {
   const [shopContextPrompt, setShopContextPrompt] = useState('');
   const [customRedirectUrl, setCustomRedirectUrl] = useState('');
   const [isSmartQrEnabled, setIsSmartQrEnabled] = useState(false);
+  const [isPublic, setIsPublic] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [globalCustomRedirectUrl, setGlobalCustomRedirectUrl] = useState('');
   const [isGlobalSmartQrEnabled, setIsGlobalSmartQrEnabled] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
@@ -245,6 +249,12 @@ export default function AdminDashboard() {
       const shopsSnap = await getDocs(collection(db, 'shops'));
       const logsSnap = await getDocs(collection(db, 'logs'));
       
+      // Fetch global settings
+      const globalSettingsSnap = await getDoc(doc(db, 'platformSettings', 'aiLimits'));
+      if (globalSettingsSnap.exists()) {
+        setGlobalLimitType(globalSettingsSnap.data().globalLimitType || 'daily');
+      }
+      
       const usersData: any[] = [];
       usersSnap.forEach(doc => usersData.push({ id: doc.id, ...doc.data() }));
       
@@ -263,6 +273,16 @@ export default function AdminDashboard() {
       toast.error("Failed to load super admin dashboard.");
     } finally {
       setSuperAdminLoading(false);
+    }
+  };
+
+  const saveGlobalLimitType = async () => {
+    try {
+      await setDoc(doc(db, 'platformSettings', 'aiLimits'), { globalLimitType }, { merge: true });
+      toast.success('Global limit type saved');
+    } catch (error) {
+      console.error('Failed to save global limit type', error);
+      toast.error('Failed to save global settings');
     }
   };
 
@@ -285,27 +305,30 @@ export default function AdminDashboard() {
     const user = allUsers.find(u => u.id === userId);
     const smartVal = limits.smartAiLimit ?? user?.smartAiLimit ?? 100;
     const simpleVal = limits.simpleAiLimit ?? user?.simpleAiLimit ?? 100;
+    const typeVal = limits.limitType ?? user?.limitType ?? 'daily';
 
     try {
       const userRef = doc(db, 'users', userId);
-      await updateDoc(userRef, { smartAiLimit: smartVal, simpleAiLimit: simpleVal });
+      await updateDoc(userRef, { smartAiLimit: smartVal, simpleAiLimit: simpleVal, limitType: typeVal });
       
       const statsRef = doc(db, 'ownerStats', userId);
       const statsSnap = await getDoc(statsRef);
       if (statsSnap.exists()) {
-        await updateDoc(statsRef, { smartAiLimit: smartVal, simpleAiLimit: simpleVal });
+        await updateDoc(statsRef, { smartAiLimit: smartVal, simpleAiLimit: simpleVal, limitType: typeVal });
       } else {
         await setDoc(statsRef, {
           smartAiLimit: smartVal,
           simpleAiLimit: simpleVal,
+          limitType: typeVal,
           smartAiUsage: 0,
           simpleAiUsage: 0,
-          lastUsageDate: new Date().toISOString().split('T')[0]
+          lastUsageDate: new Date().toISOString().split('T')[0],
+          lastUsageMonth: new Date().toISOString().slice(0, 7)
         });
       }
 
       toast.success(`Limits saved successfully`);
-      setAllUsers(allUsers.map(u => u.id === userId ? { ...u, smartAiLimit: smartVal, simpleAiLimit: simpleVal } : u));
+      setAllUsers(allUsers.map(u => u.id === userId ? { ...u, smartAiLimit: smartVal, simpleAiLimit: simpleVal, limitType: typeVal } : u));
       setEditedLimits(prev => {
         const next = { ...prev };
         delete next[userId];
@@ -367,11 +390,20 @@ export default function AdminDashboard() {
     }
     try {
       if (isLoginMode) {
-        await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
-        toast.success('Logged in successfully!');
+        const userCredential = await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
+        if (!userCredential.user.emailVerified) {
+          toast.error('Please verify your email first. Check your inbox.');
+          // Optionally sign out if you want to force verification
+          // await signOut(auth);
+          // return;
+        } else {
+          toast.success('Logged in successfully!');
+        }
       } else {
-        await createUserWithEmailAndPassword(auth, loginEmail, loginPassword);
-        toast.success('Account created successfully!');
+        const userCredential = await createUserWithEmailAndPassword(auth, loginEmail, loginPassword);
+        await sendEmailVerification(userCredential.user);
+        toast.success('Account created! Please check your email for a verification link.');
+        setIsLoginMode(true); // Switch to login mode after signup
       }
     } catch (error: any) {
       toast.error(error.message || (isLoginMode ? 'Failed to log in' : 'Failed to sign up'));
@@ -385,7 +417,7 @@ export default function AdminDashboard() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-
+    setIsSaving(true);
     const keywordArray = keywords.split(',').map(k => k.trim()).filter(k => k);
 
     try {
@@ -399,6 +431,7 @@ export default function AdminDashboard() {
           shopContextPrompt,
           customRedirectUrl,
           isSmartQrEnabled,
+          isPublic: true,
         });
         toast.success('Shop updated successfully');
       } else {
@@ -410,6 +443,7 @@ export default function AdminDashboard() {
           shopContextPrompt,
           customRedirectUrl,
           isSmartQrEnabled,
+          isPublic: true,
           ownerId: user.uid,
           createdAt: serverTimestamp(),
         });
@@ -418,10 +452,12 @@ export default function AdminDashboard() {
       setShowAddModal(false);
       setEditingShop(null);
       resetForm();
-      fetchShops(user.uid);
+      await fetchShops(user.uid);
     } catch (error) {
       handleFirestoreError(error, editingShop ? OperationType.UPDATE : OperationType.CREATE, 'shops');
       toast.error('Failed to save shop');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -451,6 +487,7 @@ export default function AdminDashboard() {
     setShopContextPrompt('');
     setCustomRedirectUrl('');
     setIsSmartQrEnabled(false);
+    setIsPublic(true);
   };
 
   const openEditModal = (shop: Shop) => {
@@ -462,6 +499,7 @@ export default function AdminDashboard() {
     setShopContextPrompt(shop.shopContextPrompt || '');
     setCustomRedirectUrl(shop.customRedirectUrl || '');
     setIsSmartQrEnabled(shop.isSmartQrEnabled || false);
+    setIsPublic(shop.isPublic ?? true);
     setShowAddModal(true);
   };
 
@@ -685,6 +723,49 @@ export default function AdminDashboard() {
               </div>
             </motion.div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (user && !user.emailVerified) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100 flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden">
+        <div className="max-w-md w-full bg-white/40 backdrop-blur-xl border border-white/50 p-10 rounded-[2rem] shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] text-center space-y-8 relative z-10">
+          <div className="w-20 h-20 bg-gradient-to-tr from-yellow-400 to-orange-500 rounded-3xl flex items-center justify-center mx-auto shadow-lg shadow-orange-200 transform -rotate-6">
+            <Shield className="w-10 h-10 text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-black text-slate-800 tracking-tight">Verify Email</h1>
+            <p className="text-slate-600 mt-2 font-medium">
+              We've sent a verification link to <strong>{user.email}</strong>. Please check your inbox and click the link to continue.
+            </p>
+          </div>
+          <div className="space-y-4">
+            <button
+              onClick={async () => {
+                try {
+                  await sendEmailVerification(user);
+                  toast.success('Verification email resent!');
+                } catch (error: any) {
+                  toast.error(error.message || 'Failed to resend email');
+                }
+              }}
+              className="w-full py-4 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-xl font-bold shadow-lg shadow-pink-200 hover:opacity-90 transition-all"
+            >
+              Resend Verification Email
+            </button>
+            <button
+              onClick={() => signOut(auth)}
+              className="w-full py-4 bg-white/80 hover:bg-white text-slate-800 rounded-2xl font-bold shadow-sm hover:shadow-md transition-all border border-white flex items-center justify-center gap-3"
+            >
+              <LogOut className="w-5 h-5" />
+              Sign Out
+            </button>
+          </div>
+          <p className="text-sm text-slate-500">
+            Already verified? <button onClick={() => window.location.reload()} className="text-pink-600 font-bold hover:underline">Refresh page</button>
+          </p>
         </div>
       </div>
     );
@@ -1019,6 +1100,26 @@ export default function AdminDashboard() {
               <p className={`${currentTheme.subtext} font-medium mt-1`}>Platform overview and user management.</p>
             </div>
             
+            <div className={`${currentTheme.card} p-8 mb-8`}>
+              <h2 className={`text-xl font-bold ${currentTheme.text} mb-4`}>Global AI Usage Limits</h2>
+              <div className="flex gap-4 items-center">
+                <select
+                  className="px-4 py-2 border border-slate-200 rounded-lg"
+                  value={globalLimitType}
+                  onChange={(e) => setGlobalLimitType(e.target.value as 'daily' | 'monthly')}
+                >
+                  <option value="daily">Daily</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+                <button
+                  onClick={saveGlobalLimitType}
+                  className="px-6 py-2 rounded-lg font-bold bg-teal-500 text-white hover:bg-teal-600 transition-colors shadow-md"
+                >
+                  Save Global Settings
+                </button>
+              </div>
+            </div>
+            
             {superAdminLoading ? (
               <div className="flex justify-center items-center h-64">
                 <div className="w-12 h-12 border-4 border-teal-200 border-t-teal-500 rounded-full animate-spin"></div>
@@ -1069,6 +1170,7 @@ export default function AdminDashboard() {
                           <th className="pb-4 font-bold text-sm uppercase tracking-wider">QR Clicks</th>
                           <th className="pb-4 font-bold text-sm uppercase tracking-wider">Smart AI Limit</th>
                           <th className="pb-4 font-bold text-sm uppercase tracking-wider">Simple AI Limit</th>
+                          <th className="pb-4 font-bold text-sm uppercase tracking-wider">Limit Type</th>
                           <th className="pb-4 font-bold text-sm uppercase tracking-wider">Joined</th>
                           <th className="pb-4 font-bold text-sm uppercase tracking-wider">Status</th>
                           <th className="pb-4 font-bold text-sm uppercase tracking-wider">Action</th>
@@ -1089,7 +1191,7 @@ export default function AdminDashboard() {
                               </td>
                               <td className={`py-4 font-bold ${currentTheme.text}`}>{userShops.length}</td>
                               <td className={`py-4 font-bold ${currentTheme.text}`}>{userLogs.length}</td>
-                              <td className="py-4">
+                              <td className="py-4 flex gap-2">
                                 <input 
                                   type="number" 
                                   min="0"
@@ -1103,6 +1205,20 @@ export default function AdminDashboard() {
                                     }));
                                   }}
                                 />
+                                <select
+                                  className="px-2 py-1 border border-slate-200 rounded-lg text-sm"
+                                  value={editedLimits[u.id]?.limitType ?? (u.limitType ?? 'daily')}
+                                  onChange={(e) => {
+                                    const val = e.target.value as 'daily' | 'monthly';
+                                    setEditedLimits(prev => ({
+                                      ...prev,
+                                      [u.id]: { ...prev[u.id], limitType: val }
+                                    }));
+                                  }}
+                                >
+                                  <option value="daily">Daily</option>
+                                  <option value="monthly">Monthly</option>
+                                </select>
                               </td>
                               <td className="py-4">
                                 <input 
@@ -1184,7 +1300,7 @@ export default function AdminDashboard() {
             <div className="w-10 h-10 bg-gradient-to-tr from-pink-400 to-purple-500 rounded-xl flex items-center justify-center shadow-md transform -rotate-6">
               <QrCode className="w-5 h-5 text-white" />
             </div>
-            SMART AI<br/>REVIEWS
+            SMART QR
           </h2>
         </div>
         <nav className="flex-1 px-6 space-y-3">
@@ -1397,9 +1513,10 @@ export default function AdminDashboard() {
                 </button>
                 <button
                   type="submit"
-                  className={`flex-1 px-5 py-4 rounded-2xl font-bold transition-opacity shadow-lg ${currentTheme.primaryBtn}`}
+                  disabled={isSaving}
+                  className={`flex-1 px-5 py-4 rounded-2xl font-bold transition-opacity shadow-lg ${currentTheme.primaryBtn} ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  {editingShop ? 'Save Changes' : 'Add Shop'}
+                  {isSaving ? 'Saving...' : (editingShop ? 'Save Changes' : 'Add Shop')}
                 </button>
               </div>
             </form>

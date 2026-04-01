@@ -24,6 +24,7 @@ interface Shop {
   shopContextPrompt?: string;
   customRedirectUrl?: string;
   isSmartQrEnabled?: boolean;
+  isPublic?: boolean;
   reviewFlow?: 'smart-then-simple' | 'simple-only';
   globalReviewFlow?: 'smart-then-simple' | 'simple-only';
   options?: { liked: string[], disliked: string[] };
@@ -324,15 +325,30 @@ export default function ShopReview() {
           // Check limits
           if (shopData.ownerId) {
             try {
+              // Fetch global settings
+              let globalLimitType: 'daily' | 'monthly' = 'daily';
+              const globalSettingsSnap = await getDoc(doc(db, 'platformSettings', 'aiLimits'));
+              if (globalSettingsSnap.exists()) {
+                globalLimitType = globalSettingsSnap.data().globalLimitType || 'daily';
+              }
+
               const statsRef = doc(db, 'ownerStats', shopData.ownerId);
               const statsSnap = await getDoc(statsRef);
               if (statsSnap.exists()) {
                 const stats = statsSnap.data();
                 const today = new Date().toISOString().split('T')[0];
-                const isToday = stats.lastUsageDate === today;
+                const thisMonth = new Date().toISOString().slice(0, 7);
+                const limitType = stats.limitType || globalLimitType;
                 
-                const smartUsage = isToday ? (stats.smartAiUsage || 0) : 0;
-                const simpleUsage = isToday ? (stats.simpleAiUsage || 0) : 0;
+                let isLimitPeriod = false;
+                if (limitType === 'daily') {
+                  isLimitPeriod = stats.lastUsageDate === today;
+                } else {
+                  isLimitPeriod = stats.lastUsageMonth === thisMonth;
+                }
+                
+                const smartUsage = isLimitPeriod ? (stats.smartAiUsage || 0) : 0;
+                const simpleUsage = isLimitPeriod ? (stats.simpleAiUsage || 0) : 0;
                 const smartLimit = stats.smartAiLimit !== undefined ? stats.smartAiLimit : 100;
                 const simpleLimit = stats.simpleAiLimit !== undefined ? stats.simpleAiLimit : 100;
 
@@ -433,35 +449,58 @@ export default function ShopReview() {
   const incrementUsage = async (type: 'smartAiUsage' | 'simpleAiUsage') => {
     if (!shop?.ownerId) return;
     try {
+      // Fetch global settings
+      let globalLimitType: 'daily' | 'monthly' = 'daily';
+      const globalSettingsSnap = await getDoc(doc(db, 'platformSettings', 'aiLimits'));
+      if (globalSettingsSnap.exists()) {
+        globalLimitType = globalSettingsSnap.data().globalLimitType || 'daily';
+      }
+
       const statsRef = doc(db, 'ownerStats', shop.ownerId);
       const statsSnap = await getDoc(statsRef);
       const today = new Date().toISOString().split('T')[0];
+      const thisMonth = new Date().toISOString().slice(0, 7);
       
       if (statsSnap.exists()) {
         const stats = statsSnap.data();
-        const isToday = stats.lastUsageDate === today;
+        const limitType = stats.limitType || globalLimitType;
         
-        if (isToday) {
+        let isLimitPeriod = false;
+        if (limitType === 'daily') {
+          isLimitPeriod = stats.lastUsageDate === today;
+        } else {
+          isLimitPeriod = stats.lastUsageMonth === thisMonth;
+        }
+        
+        if (isLimitPeriod) {
           const currentUsage = stats[type] || 0;
           await updateDoc(statsRef, {
             [type]: currentUsage + 1
           });
         } else {
-          // New day, reset both usages
-          await updateDoc(statsRef, {
+          // New period, reset both usages
+          const updateData: any = {
             smartAiUsage: type === 'smartAiUsage' ? 1 : 0,
             simpleAiUsage: type === 'simpleAiUsage' ? 1 : 0,
-            lastUsageDate: today
-          });
+          };
+          if (limitType === 'daily') {
+            updateData.lastUsageDate = today;
+          } else {
+            updateData.lastUsageMonth = thisMonth;
+          }
+          await updateDoc(statsRef, updateData);
         }
       } else {
-        await setDoc(statsRef, {
+        const newData: any = {
           smartAiLimit: 100,
           simpleAiLimit: 100,
+          limitType: globalLimitType,
           smartAiUsage: type === 'smartAiUsage' ? 1 : 0,
           simpleAiUsage: type === 'simpleAiUsage' ? 1 : 0,
-          lastUsageDate: today
-        });
+          lastUsageDate: today,
+          lastUsageMonth: thisMonth
+        };
+        await setDoc(statsRef, newData);
       }
     } catch (error) {
       console.error("Failed to increment usage", error);
@@ -518,7 +557,7 @@ export default function ShopReview() {
   const currentTheme = displayShop ? (THEMES[(displayShop.theme as keyof typeof THEMES)] || THEMES['mint-neumorphism']) : THEMES['default'];
   const isSimpleMode = displayShop ? (searchParams.get('mode') === 'simple' || autoSimpleMode || (displayShop.reviewFlow || displayShop.globalReviewFlow || 'smart-then-simple') === 'simple-only') : false;
 
-  if (loading || optionsLoading) {
+  if (loading) {
     return (
       <div className={`min-h-screen ${currentTheme.bg} flex items-center justify-center p-6 overflow-hidden transition-colors duration-500`}>
         <div className="flex flex-col items-center justify-center relative">
@@ -542,6 +581,17 @@ export default function ShopReview() {
           >
             Loading experience...
           </motion.p>
+        </div>
+      </div>
+    );
+  }
+
+  if (displayShop && !displayShop.isPublic) {
+    return (
+      <div className={`min-h-screen ${currentTheme.bg} flex items-center justify-center p-6`}>
+        <div className={`${currentTheme.card} p-8 rounded-3xl text-center`}>
+          <h1 className={`text-2xl font-bold ${currentTheme.text}`}>Shop is Private</h1>
+          <p className={`${currentTheme.subtext} mt-2`}>This shop is not currently public.</p>
         </div>
       </div>
     );
