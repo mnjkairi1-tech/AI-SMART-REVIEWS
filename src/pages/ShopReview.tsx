@@ -26,6 +26,7 @@ interface Shop {
   isSmartQrEnabled?: boolean;
   reviewFlow?: 'smart-then-simple' | 'simple-only';
   globalReviewFlow?: 'smart-then-simple' | 'simple-only';
+  options?: { liked: string[], disliked: string[] };
 }
 
 const THEMES = {
@@ -292,7 +293,7 @@ export default function ShopReview() {
           // Fetch owner's global settings
           if (shopData.ownerId) {
             try {
-              const userRef = doc(db, 'users', shopData.ownerId);
+              const userRef = doc(db, 'publicUserSettings', shopData.ownerId);
               const userSnap = await getDoc(userRef);
               if (userSnap.exists()) {
                 const userData = userSnap.data();
@@ -350,7 +351,11 @@ export default function ShopReview() {
 
           // Generate dynamic options
           setOptionsLoading(true);
-          const options = await generateDynamicOptions(shopData.name, shopData.shopContextPrompt);
+          let options = shopData.options;
+          if (!options) {
+            options = await generateDynamicOptions(shopData.name, shopData.shopContextPrompt);
+            await updateDoc(doc(db, 'shops', shopId), { options });
+          }
           setLikedOptions(options.liked || []);
           setDislikedOptions([...(options.disliked || []), 'None']);
           setOptionsLoading(false);
@@ -509,65 +514,31 @@ export default function ShopReview() {
     }, 1500);
   };
 
+  const displayShop = shop;
+  const currentTheme = displayShop ? (THEMES[(displayShop.theme as keyof typeof THEMES)] || THEMES['mint-neumorphism']) : THEMES['default'];
+  const isSimpleMode = displayShop ? (searchParams.get('mode') === 'simple' || autoSimpleMode || (displayShop.reviewFlow || displayShop.globalReviewFlow || 'smart-then-simple') === 'simple-only') : false;
+
   if (loading || optionsLoading) {
     return (
-      <div className="min-h-screen bg-[#e0f2eb] flex items-center justify-center p-6 overflow-hidden">
+      <div className={`min-h-screen ${currentTheme.bg} flex items-center justify-center p-6 overflow-hidden transition-colors duration-500`}>
         <div className="flex flex-col items-center justify-center relative">
-          {/* Bouncing Liquid Bubble */}
+          {/* Theme-aware rotating spinner */}
           <motion.div
-            animate={{
-              y: [0, -30, 0],
-              scaleX: [1, 0.85, 1.15, 1],
-              scaleY: [1, 1.15, 0.85, 1],
-              borderRadius: [
-                "40% 60% 70% 30% / 40% 50% 60% 50%",
-                "60% 40% 30% 70% / 60% 30% 70% 40%",
-                "50% 50% 50% 50% / 50% 50% 50% 50%",
-                "40% 60% 70% 30% / 40% 50% 60% 50%"
-              ]
-            }}
+            animate={{ rotate: 360 }}
             transition={{
               duration: 1.5,
               repeat: Infinity,
-              ease: "easeInOut"
+              ease: "linear"
             }}
-            className="w-24 h-24 bg-gradient-to-br from-[#86e3ce] to-[#6ee7b7] shadow-[8px_8px_16px_#becece,-8px_-8px_16px_#ffffff] mb-8 relative flex flex-col items-center justify-center z-10"
+            className={`w-20 h-20 border-4 ${currentTheme.iconBg} border-t-${currentTheme.accent.replace('text-', '')} rounded-full flex items-center justify-center z-10`}
           >
-            {/* Cute face inside the bubble */}
-            <div className="flex gap-3 mt-2">
-              <motion.div 
-                animate={{ scaleY: [1, 0.1, 1] }}
-                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", times: [0, 0.05, 0.1] }}
-                className="w-2.5 h-3.5 bg-teal-900 rounded-full" 
-              />
-              <motion.div 
-                animate={{ scaleY: [1, 0.1, 1] }}
-                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", times: [0, 0.05, 0.1] }}
-                className="w-2.5 h-3.5 bg-teal-900 rounded-full" 
-              />
-            </div>
-            {/* Smile */}
-            <div className="w-4 h-2 border-b-2 border-teal-900 rounded-full mt-1" />
+            <Store className={`w-8 h-8 ${currentTheme.iconColor}`} />
           </motion.div>
-          
-          {/* Shadow under the bubble */}
-          <motion.div
-            animate={{
-              scale: [1, 0.6, 1],
-              opacity: [0.3, 0.1, 0.3]
-            }}
-            transition={{
-              duration: 1.5,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-            className="w-16 h-3 bg-teal-900/20 rounded-[100%] blur-[2px] mb-6 absolute top-[90px]"
-          />
 
           <motion.p 
             animate={{ opacity: [0.5, 1, 0.5] }}
             transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-            className="text-teal-700 font-bold tracking-widest uppercase text-sm mt-4"
+            className={`${currentTheme.text} font-bold tracking-widest uppercase text-sm mt-8`}
           >
             Loading experience...
           </motion.p>
@@ -587,10 +558,6 @@ export default function ShopReview() {
       </div>
     );
   }
-
-  const displayShop = shop;
-  const currentTheme = THEMES[(displayShop.theme as keyof typeof THEMES)] || THEMES['mint-neumorphism'];
-  const isSimpleMode = searchParams.get('mode') === 'simple' || autoSimpleMode || (displayShop.reviewFlow || displayShop.globalReviewFlow || 'smart-then-simple') === 'simple-only';
 
   if (limitReached) {
     return (
@@ -925,7 +892,7 @@ export default function ShopReview() {
       </motion.div>
       
       <div className={`mt-8 text-center ${currentTheme.subtext} text-xs font-bold tracking-widest uppercase relative z-10`}>
-        Powered by SMART AI REVIEWS
+        Powered by SMART QR
       </div>
     </div>
   );

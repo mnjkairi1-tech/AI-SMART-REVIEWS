@@ -24,7 +24,7 @@ export default function PrivacyPolicy() {
 
           <div className="space-y-6 text-slate-600 font-medium leading-relaxed">
             <p>
-              Welcome to SMART AI REVIEWS. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our application.
+              Welcome to SMART QR. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our application.
             </p>
 
             <h2 className="text-2xl font-bold text-slate-800 mt-8 mb-4">1. Information We Collect</h2>

@@ -571,7 +571,7 @@ export default function AdminDashboard() {
             <QrCode className="w-10 h-10 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-black text-slate-800 tracking-tight">SMART AI REVIEWS</h1>
+            <h1 className="text-3xl font-black text-slate-800 tracking-tight">SMART QR</h1>
             <p className="text-slate-600 mt-2 font-medium">Sign in to manage your shops and QR codes.</p>
           </div>
           <button
@@ -764,79 +764,87 @@ export default function AdminDashboard() {
                     th: shop.theme || 'mint-neumorphism'
                   };
                   const encodedData = btoa(encodeURIComponent(JSON.stringify(shopData)));
-                  const shopUrl = `${window.location.origin}/shop/${shop.id}?d=${encodedData}`;
-                  const simpleShopUrl = `${window.location.origin}/shop/${shop.id}?mode=simple`;
+                  const shopUrl = `/shop/${shop.id}?d=${encodedData}`;
+                  const simpleShopUrl = `/shop/${shop.id}?mode=simple`;
                   
                   return (
-                    <div key={shop.id} className={`${currentTheme.card} p-6 flex flex-col sm:flex-row gap-6 transition-all relative`}>
-                      <div className="flex-1 space-y-4">
-                        <div className="pr-24">
-                          <h3 className={`text-xl font-bold ${currentTheme.text}`}>{shop.name}</h3>
-                          <span className="inline-block px-3 py-1 bg-pink-100 text-pink-700 text-xs font-bold rounded-lg mt-2">
-                            {shop.type}
-                          </span>
-                        </div>
-                        
-                        <button
-                          onClick={() => openThemeModal(shop)}
-                          className="absolute top-6 right-6 p-2.5 text-purple-600 bg-purple-100 hover:bg-purple-200 rounded-xl transition-colors shadow-sm flex items-center gap-2 font-bold text-sm"
-                          title="Change Theme"
-                        >
-                          <Palette className="w-4 h-4" />
-                          <span className="hidden sm:inline">Theme</span>
-                        </button>
+                    <div key={shop.id} className="flex flex-col">
+                      <div className={`${currentTheme.card} p-6 flex flex-col sm:flex-row gap-6 transition-all relative`}>
+                        <div className="flex-1 space-y-4">
+                          <div className="pr-24">
+                            <h3 className={`text-xl font-bold ${currentTheme.text}`}>{shop.name}</h3>
+                            <span className="inline-block px-3 py-1 bg-pink-100 text-pink-700 text-xs font-bold rounded-lg mt-2">
+                              {shop.type}
+                            </span>
+                          </div>
+                          
+                          <button
+                            onClick={() => openThemeModal(shop)}
+                            className="absolute top-6 right-6 p-2.5 text-purple-600 bg-purple-100 hover:bg-purple-200 rounded-xl transition-colors shadow-sm flex items-center gap-2 font-bold text-sm"
+                            title="Change Theme"
+                          >
+                            <Palette className="w-4 h-4" />
+                            <span className="hidden sm:inline">Theme</span>
+                          </button>
 
-                        <div>
-                          <p className={`text-xs ${currentTheme.subtext} font-bold uppercase tracking-wider mb-2`}>Keywords</p>
-                          <div className="flex flex-wrap gap-2">
-                            {shop.keywords.map((kw, i) => (
-                              <span key={i} className="px-3 py-1 bg-white/50 text-slate-600 text-xs font-medium rounded-lg border border-slate-100 shadow-sm">
-                                {kw}
-                              </span>
-                            ))}
+                          <div>
+                            <p className={`text-xs ${currentTheme.subtext} font-bold uppercase tracking-wider mb-2`}>Keywords</p>
+                            <div className="flex flex-wrap gap-2">
+                              {shop.keywords.map((kw, i) => (
+                                <span key={i} className="px-3 py-1 bg-white/50 text-slate-600 text-xs font-medium rounded-lg border border-slate-100 shadow-sm">
+                                  {kw}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 pt-4 flex-wrap">
+                            <button
+                              onClick={() => {
+                                if (dbUser?.isBlocked) {
+                                  toast.error('Your account is blocked.');
+                                  return;
+                                }
+                                openEditModal(shop);
+                              }}
+                              disabled={dbUser?.isBlocked}
+                              className={`p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors bg-white/50 shadow-sm ${dbUser?.isBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              title="Edit"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(shop)}
+                              className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors bg-white/50 shadow-sm"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(shopUrl);
+                                toast.success('Public link copied!');
+                              }}
+                              className="p-2.5 text-slate-400 hover:text-pink-600 hover:bg-pink-50 rounded-xl transition-colors bg-white/50 shadow-sm flex items-center gap-2"
+                              title="Copy Public Link"
+                            >
+                              <Copy className="w-4 h-4" /> Public Link
+                            </button>
+                            <a
+                              href={shopUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-pink-500 hover:text-pink-600 hover:underline font-bold flex items-center gap-1 ml-auto"
+                            >
+                              View Page <ChevronRight className="w-4 h-4" />
+                            </a>
                           </div>
                         </div>
-
-                        <div className="flex items-center gap-2 pt-4 flex-wrap">
-                          <button
-                            onClick={() => {
-                              if (dbUser?.isBlocked) {
-                                toast.error('Your account is blocked.');
-                                return;
-                              }
-                              openEditModal(shop);
-                            }}
-                            disabled={dbUser?.isBlocked}
-                            className={`p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors bg-white/50 shadow-sm ${dbUser?.isBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            title="Edit"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(shop)}
-                            className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors bg-white/50 shadow-sm"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(shopUrl);
-                              toast.success('Public link copied!');
-                            }}
-                            className="p-2.5 text-slate-400 hover:text-pink-600 hover:bg-pink-50 rounded-xl transition-colors bg-white/50 shadow-sm flex items-center gap-2"
-                            title="Copy Public Link"
-                          >
-                            <Copy className="w-4 h-4" /> Public Link
-                          </button>
-                          <Link
-                            to={`/shop/${shop.id}?d=${encodedData}`}
-                            target="_blank"
-                            className="text-sm text-pink-500 hover:text-pink-600 hover:underline font-bold flex items-center gap-1 ml-auto"
-                          >
-                            View Page <ChevronRight className="w-4 h-4" />
-                          </Link>
-                        </div>
+                      </div>
+                      {/* Placeholder section for empty space */}
+                      <div className={`${currentTheme.card} p-6 mt-4 flex items-center justify-center gap-4 text-slate-400 border-dashed border-2`}>
+                        <Sparkles className="w-6 h-6" />
+                        <p className="font-medium">More features coming soon for this shop!</p>
                       </div>
                     </div>
                   );
@@ -911,6 +919,7 @@ export default function AdminDashboard() {
                       onChange={(e) => {
                         setIsGlobalSmartQrEnabled(e.target.checked);
                         updateDoc(doc(db, 'users', user!.uid), { isGlobalSmartQrEnabled: e.target.checked });
+                        setDoc(doc(db, 'publicUserSettings', user!.uid), { isGlobalSmartQrEnabled: e.target.checked }, { merge: true });
                       }}
                       className="w-5 h-5 text-pink-600 rounded focus:ring-pink-500"
                     />
@@ -921,7 +930,10 @@ export default function AdminDashboard() {
                       type="url"
                       value={globalCustomRedirectUrl}
                       onChange={(e) => setGlobalCustomRedirectUrl(e.target.value)}
-                      onBlur={() => updateDoc(doc(db, 'users', user!.uid), { globalCustomRedirectUrl })}
+                      onBlur={() => {
+                        updateDoc(doc(db, 'users', user!.uid), { globalCustomRedirectUrl });
+                        setDoc(doc(db, 'publicUserSettings', user!.uid), { globalCustomRedirectUrl }, { merge: true });
+                      }}
                       className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-pink-500/20 focus:border-pink-500 outline-none transition-all font-medium text-slate-800"
                       placeholder="https://your-global-link.com"
                     />
@@ -1225,7 +1237,7 @@ export default function AdminDashboard() {
           <div className="w-8 h-8 bg-gradient-to-tr from-pink-400 to-purple-500 rounded-lg flex items-center justify-center shadow-sm transform -rotate-6">
             <QrCode className="w-4 h-4 text-white" />
           </div>
-          SMART AI REVIEWS
+          SMART QR
         </h2>
       </header>
 

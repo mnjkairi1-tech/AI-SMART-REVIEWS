@@ -160,6 +160,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /publicUserSettings/{userId} {
+      // Anyone can read public user settings
+      allow read: if true;
+      // Only the owner or admin can write
+      allow write: if isOwner(userId) || isAdmin();
+    }
+
     match /users/{userId} {
       // Anyone can read if they are the owner or an admin
       allow read: if isOwner(userId) || isAdmin();
