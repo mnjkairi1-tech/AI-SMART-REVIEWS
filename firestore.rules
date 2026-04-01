@@ -100,7 +100,7 @@ service cloud.firestore {
     }
 
     function isValidShop(data) {
-      return hasOnlyAllowedFields(['name', 'type', 'keywords', 'reviewLink', 'ownerId', 'createdAt', 'theme', 'shopContextPrompt', 'customRedirectUrl', 'isSmartQrEnabled']) &&
+      return hasOnlyAllowedFields(['name', 'type', 'keywords', 'reviewLink', 'ownerId', 'createdAt', 'theme', 'shopContextPrompt', 'customRedirectUrl', 'isSmartQrEnabled', 'isPublic']) &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              data.type is string && data.type.size() > 0 && data.type.size() < 50 &&
              isValidList(data.keywords, 20) &&
@@ -110,7 +110,8 @@ service cloud.firestore {
              (!('theme' in data) || (data.theme is string && data.theme.size() < 50)) &&
              data.shopContextPrompt is string && data.shopContextPrompt.size() > 0 && data.shopContextPrompt.size() < 2000 &&
              (!('customRedirectUrl' in data) || data.customRedirectUrl == '' || (isValidUrl(data.customRedirectUrl) && data.customRedirectUrl.size() < 500)) &&
-             (!('isSmartQrEnabled' in data) || data.isSmartQrEnabled is bool);
+             (!('isSmartQrEnabled' in data) || data.isSmartQrEnabled is bool) &&
+             (!('isPublic' in data) || data.isPublic is bool);
     }
 
     function isValidLog(data) {
